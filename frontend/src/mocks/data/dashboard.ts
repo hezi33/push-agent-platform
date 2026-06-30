@@ -2,24 +2,55 @@ import type { DashboardData, AlertItem, KPICardData } from '../../types';
 
 // ============================================================
 // Mock 数据 — 数据看板首页
-// 基于 2024.07.17 真实数据量级构造 30 天历史
+// 基于 2024.07.17 真实数据量级构造，日期全部动态生成
 // ============================================================
+
+/** 今天 */
+const TODAY = new Date();
+
+/**
+ * 格式化日期 YYYY-MM-DD
+ */
+function fmtDate(d: Date): string {
+  return d.toISOString().split('T')[0];
+}
+
+/**
+ * 格式化日期时间 ISO
+ */
+function fmtDateTime(d: Date, hour: number, minute: number = 0): string {
+  const copy = new Date(d);
+  copy.setHours(hour, minute, 0, 0);
+  return copy.toISOString();
+}
+
+/**
+ * 生成 N 天前的日期
+ */
+function daysAgo(n: number): Date {
+  const d = new Date(TODAY);
+  d.setDate(d.getDate() - n);
+  return d;
+}
 
 /**
  * 生成 30 天日期列表
  */
 function generateDates(days: number = 30): string[] {
   const dates: string[] = [];
-  const base = new Date(2024, 6, 17); // 2024-07-17
   for (let i = days - 1; i >= 0; i--) {
-    const d = new Date(base);
-    d.setDate(d.getDate() - i);
-    dates.push(d.toISOString().split('T')[0]);
+    dates.push(fmtDate(daysAgo(i)));
   }
   return dates;
 }
 
 const DATES = generateDates(30);
+
+/** 今天的日期标记（用于告警 ID） */
+const TODAY_MARK = fmtDate(TODAY).replace(/-/g, '');
+const YESTERDAY_MARK = fmtDate(daysAgo(1)).replace(/-/g, '');
+const DAY2_MARK = fmtDate(daysAgo(2)).replace(/-/g, '');
+const DAY3_MARK = fmtDate(daysAgo(3)).replace(/-/g, '');
 
 /**
  * 带噪声的数值生成器
@@ -133,7 +164,7 @@ export const mockTrendData = {
 export const mockAlertList: AlertItem[] = [
   // 🔴 严重告警 — 本地实时到达率骤降 (PRD 主示例)
   {
-    alertId: 'ALT-20240717-001',
+    alertId: `ALT-${TODAY_MARK}-001`,
     level: 'S05',
     metricName: 'arrive_rate',
     metricLabel: '到达率',
@@ -148,14 +179,14 @@ export const mockAlertList: AlertItem[] = [
       platform: 'Android',
     },
     estimatedLoss: 2300,
-    detectedAt: '2024-07-17T14:00:00',
+    detectedAt: fmtDateTime(TODAY, 14, 0),
     attributionStatus: 'S07',
     isRead: false,
     summary: '本地实时 Push 到达率从 35% 骤降至 22%，影响 Android·小米·广东省，预计已损失首启用户约 2,300。已自动触发归因分析。',
   },
   // ⚠️ 告警 — UV 打开率下降 (归因 eval case)
   {
-    alertId: 'ALT-20240717-002',
+    alertId: `ALT-${TODAY_MARK}-002`,
     level: 'S04',
     metricName: 'uv_open_rate',
     metricLabel: 'UV 打开率',
@@ -170,14 +201,14 @@ export const mockAlertList: AlertItem[] = [
       platform: 'all',
     },
     estimatedLoss: 5200,
-    detectedAt: '2024-07-17T11:00:00',
+    detectedAt: fmtDateTime(TODAY, 11, 0),
     attributionStatus: 'S08',
     isRead: false,
     summary: '全量 Push UV 打开率从 3.90% 降至 3.40%（-12.8%），多维度受影响。归因已完成，置信度 65%，待人工确认。',
   },
   // 📌 关注 — iOS 全量打开率微降
   {
-    alertId: 'ALT-20240717-003',
+    alertId: `ALT-${TODAY_MARK}-003`,
     level: 'S03',
     metricName: 'uv_open_rate',
     metricLabel: 'UV 打开率',
@@ -192,14 +223,14 @@ export const mockAlertList: AlertItem[] = [
       platform: 'iOS',
     },
     estimatedLoss: 300,
-    detectedAt: '2024-07-17T10:30:00',
+    detectedAt: fmtDateTime(TODAY, 10, 30),
     attributionStatus: null,
     isRead: true,
     summary: 'iOS 全量 Push UV 打开率微降 4.6%，偏离 1.8σ，标记关注。未触发归因。',
   },
   // 📌 关注 — OPPO 人均展示下降
   {
-    alertId: 'ALT-20240717-004',
+    alertId: `ALT-${TODAY_MARK}-004`,
     level: 'S03',
     metricName: 'avg_show_per_user',
     metricLabel: '人均展示次数',
@@ -214,14 +245,14 @@ export const mockAlertList: AlertItem[] = [
       platform: 'Android',
     },
     estimatedLoss: 0,
-    detectedAt: '2024-07-17T09:45:00',
+    detectedAt: fmtDateTime(TODAY, 9, 45),
     attributionStatus: null,
     isRead: true,
     summary: '个性化实时·OPPO·Android 人均展示次数从 6.5 降至 5.8，关注厂商通道是否调整了展示策略。',
   },
-  // ✅ 历史已闭环告警
+  // ✅ 历史已闭环告警 — 昨天
   {
-    alertId: 'ALT-20240716-001',
+    alertId: `ALT-${YESTERDAY_MARK}-001`,
     level: 'S04',
     metricName: 'first_open_uv',
     metricLabel: '首启 UV',
@@ -236,13 +267,13 @@ export const mockAlertList: AlertItem[] = [
       platform: 'Android',
     },
     estimatedLoss: 1800,
-    detectedAt: '2024-07-16T15:00:00',
+    detectedAt: fmtDateTime(daysAgo(1), 15, 0),
     attributionStatus: 'S08',
     isRead: true,
     summary: '华为·江苏首启 UV 下降 9.6%，归因完成——华为推送 SDK 版本更新导致部分机型到达率下降。',
   },
   {
-    alertId: 'ALT-20240716-002',
+    alertId: `ALT-${YESTERDAY_MARK}-002`,
     level: 'S05',
     metricName: 'send_uv',
     metricLabel: '发送量',
@@ -257,14 +288,14 @@ export const mockAlertList: AlertItem[] = [
       platform: 'Android',
     },
     estimatedLoss: 8500,
-    detectedAt: '2024-07-16T08:00:00',
+    detectedAt: fmtDateTime(daysAgo(1), 8, 0),
     attributionStatus: 'S08',
     isRead: true,
     summary: 'VIVO 通道发送量骤降 28.8%，经排查为 VIVO 推送平台服务故障，已于当日 12:00 恢复。',
   },
-  // 历史已闭环 (S15)
+  // 历史已闭环 (S15) — 前天
   {
-    alertId: 'ALT-20240715-001',
+    alertId: `ALT-${DAY2_MARK}-001`,
     level: 'S04',
     metricName: 'uv_open_rate',
     metricLabel: 'UV 打开率',
@@ -279,13 +310,13 @@ export const mockAlertList: AlertItem[] = [
       platform: 'Android',
     },
     estimatedLoss: 1200,
-    detectedAt: '2024-07-15T13:30:00',
+    detectedAt: fmtDateTime(daysAgo(2), 13, 30),
     attributionStatus: 'S08',
     isRead: true,
     summary: '小米·浙江个性化实时打开率下降——内容推送时段与用户活跃高峰错位。策略已闭环（S15）。',
   },
   {
-    alertId: 'ALT-20240714-001',
+    alertId: `ALT-${DAY3_MARK}-001`,
     level: 'S03',
     metricName: 'show_rate',
     metricLabel: '展示率',
@@ -300,7 +331,7 @@ export const mockAlertList: AlertItem[] = [
       platform: 'Android',
     },
     estimatedLoss: 400,
-    detectedAt: '2024-07-14T16:20:00',
+    detectedAt: fmtDateTime(daysAgo(3), 16, 20),
     attributionStatus: null,
     isRead: true,
     summary: '三星·北京本地实时展示率略降，关注。不影响整体 KPI，暂时忽略。',
