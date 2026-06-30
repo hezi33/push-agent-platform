@@ -1,0 +1,49 @@
+/* ============================================================
+   全局样式
+   ============================================================ */
+
+*,
+*::before,
+*::after {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  font-family: -apple-system, BlinkMacSystemFont, "PingFang SC",
+               "Hiragino Sans GB", "Microsoft YaHei", "Helvetica Neue",
+               Helvetica, Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background: #F2F3F5;
+}
+
+/* 滚动条样式 */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #C9CDD4;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* 新告警脉冲动画 */
+@keyframes alertPulse {
+  0%   { box-shadow: 0 0 0 0 rgba(245, 63, 63, 0.4); }
+  70%  { box-shadow: 0 0 0 8px rgba(245, 63, 63, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(245, 63, 63, 0); }
+}
+
+.alert-pulse {
+  animation: alertPulse 2s ease-in-out infinite;
+}

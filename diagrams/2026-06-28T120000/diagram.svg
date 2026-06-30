@@ -1,0 +1,361 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 1280">
+  <defs>
+    <marker id="arrowBlue" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#1A73E8"/>
+    </marker>
+    <marker id="arrowGreen" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#0D904F"/>
+    </marker>
+    <marker id="arrowGray" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#80868B"/>
+    </marker>
+    <marker id="arrowRed" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#C5221F"/>
+    </marker>
+  </defs>
+
+  <!-- ===== BACKGROUND ===== -->
+  <rect width="1600" height="1280" fill="#F8F9FB" rx="0"/>
+
+  <!-- Subtle background decorative lines -->
+  <line x1="0" y1="60" x2="1600" y2="60" stroke="#E8EAED" stroke-width="1"/>
+  <line x1="0" y1="1270" x2="1600" y2="1270" stroke="#E8EAED" stroke-width="1"/>
+
+  <!-- ===== MAIN TITLE ===== -->
+  <text x="800" y="44" text-anchor="middle" font-family="Noto Sans SC, sans-serif" font-size="24" font-weight="bold" fill="#202124">网易新闻 Push 数据分析 — 四 Agent 协作全景架构图</text>
+
+  <!-- ============================================ -->
+  <!-- DATA SOURCE LAYER                           -->
+  <!-- ============================================ -->
+  <rect x="40" y="75" width="1520" height="95" rx="12" fill="#F1F3F4"/>
+  <rect x="40" y="75" width="1520" height="95" rx="12" fill="none" stroke="#DADCE0" stroke-width="1.5"/>
+
+  <!-- Layer label -->
+  <rect x="40" y="75" width="125" height="95" rx="12" fill="#80868B"/>
+  <rect x="155" y="75" width="10" height="95" fill="#80868B"/>
+  <text x="103" y="125" text-anchor="middle" font-family="Noto Sans SC, sans-serif" font-size="16" font-weight="bold" fill="#FFFFFF">数 据 源 层</text>
+
+  <!-- Data source: PUSH平台 -->
+  <rect x="205" y="92" width="225" height="62" rx="10" fill="#FFFFFF" stroke="#DADCE0" stroke-width="1.2"/>
+  <circle cx="225" cy="115" r="5" fill="#5F6368"/>
+  <text x="240" y="115" font-family="Noto Sans SC, sans-serif" font-size="14" font-weight="bold" fill="#3C4043">PUSH 平台</text>
+  <text x="240" y="135" font-family="Noto Sans SC, sans-serif" font-size="11" fill="#80868B">发送 / 到达 / 展示 / 打开</text>
+
+  <!-- Data source: 数易平台 -->
+  <rect x="455" y="92" width="225" height="62" rx="10" fill="#FFFFFF" stroke="#DADCE0" stroke-width="1.2"/>
+  <circle cx="475" cy="115" r="5" fill="#5F6368"/>
+  <text x="490" y="115" font-family="Noto Sans SC, sans-serif" font-size="14" font-weight="bold" fill="#3C4043">数易平台</text>
+  <text x="490" y="135" font-family="Noto Sans SC, sans-serif" font-size="11" fill="#80868B">用户行为与画像数据</text>
+
+  <!-- Data source: 排班系统 -->
+  <rect x="705" y="92" width="225" height="62" rx="10" fill="#FFFFFF" stroke="#DADCE0" stroke-width="1.2"/>
+  <circle cx="725" cy="115" r="5" fill="#5F6368"/>
+  <text x="740" y="115" font-family="Noto Sans SC, sans-serif" font-size="14" font-weight="bold" fill="#3C4043">排班系统</text>
+  <text x="740" y="135" font-family="Noto Sans SC, sans-serif" font-size="11" fill="#80868B">编辑排班匹配</text>
+
+  <!-- Data source: 内容运营平台 -->
+  <rect x="955" y="92" width="225" height="62" rx="10" fill="#FFFFFF" stroke="#DADCE0" stroke-width="1.2"/>
+  <circle cx="975" cy="115" r="5" fill="#5F6368"/>
+  <text x="990" y="115" font-family="Noto Sans SC, sans-serif" font-size="14" font-weight="bold" fill="#3C4043">内容运营平台</text>
+  <text x="990" y="135" font-family="Noto Sans SC, sans-serif" font-size="11" fill="#80868B">轮播池 / 视频 / CTR</text>
+
+  <!-- Data source: 内部数据库 -->
+  <rect x="1205" y="92" width="225" height="62" rx="10" fill="#FFFFFF" stroke="#DADCE0" stroke-width="1.2"/>
+  <circle cx="1225" cy="115" r="5" fill="#5F6368"/>
+  <text x="1240" y="115" font-family="Noto Sans SC, sans-serif" font-size="14" font-weight="bold" fill="#3C4043">内部数据库</text>
+  <text x="1240" y="135" font-family="Noto Sans SC, sans-serif" font-size="11" fill="#80868B">DAU / 留存 / 多维分析</text>
+
+  <!-- Data flow: from Data Source to Left Channel -->
+  <polyline points="500,170 500,195 400,195 400,215" fill="none" stroke="#80868B" stroke-width="2.2" stroke-dasharray="6,4" marker-end="url(#arrowGray)"/>
+
+  <!-- Data flow: from Data Source to Right Channel -->
+  <polyline points="1100,170 1100,195 1200,195 1200,215" fill="none" stroke="#80868B" stroke-width="2.2" stroke-dasharray="6,4" marker-end="url(#arrowGray)"/>
+
+  <!-- Flow labels -->
+  <text x="460" y="208" font-family="Noto Sans SC, sans-serif" font-size="10" fill="#9AA0A6">数据流入</text>
+  <text x="1130" y="208" font-family="Noto Sans SC, sans-serif" font-size="10" fill="#9AA0A6">数据流入</text>
+
+  <!-- ============================================ -->
+  <!-- VERTICAL DIVIDER BETWEEN CHANNELS           -->
+  <!-- ============================================ -->
+  <line x1="800" y1="225" x2="800" y2="1260" stroke="#DADCE0" stroke-width="2.5" stroke-dasharray="10,7"/>
+
+  <!-- Divider label -->
+  <rect x="738" y="710" width="124" height="32" rx="16" fill="#FFFFFF" stroke="#DADCE0" stroke-width="1.5"/>
+  <text x="800" y="731" text-anchor="middle" font-family="Noto Sans SC, sans-serif" font-size="13" font-weight="bold" fill="#80868B">完 全 解 耦</text>
+
+  <!-- ============================================ -->
+  <!-- LEFT CHANNEL: 主动分析通道                   -->
+  <!-- ============================================ -->
+  <rect x="40" y="225" width="740" height="1040" rx="16" fill="#F4F8FE" fill-opacity="0.6" stroke="#C6DAFC" stroke-width="1.5"/>
+
+  <!-- Left Channel Header -->
+  <rect x="40" y="225" width="740" height="58" rx="16" fill="#1A73E8"/>
+  <rect x="40" y="267" width="740" height="16" fill="#1A73E8"/>
+  <text x="410" y="250" text-anchor="middle" font-family="Noto Sans SC, sans-serif" font-size="19" font-weight="bold" fill="#FFFFFF">主 动 分 析 通 道</text>
+  <text x="410" y="271" text-anchor="middle" font-family="Noto Sans SC, sans-serif" font-size="11" fill="#C6DAFC">异常发现 → 归因分析 → 策略优化 · 全自动闭环</text>
+
+  <!-- Service target badge -->
+  <rect x="470" y="295" width="280" height="28" rx="14" fill="#E8F0FE" stroke="#A8C7FA" stroke-width="1"/>
+  <text x="610" y="314" text-anchor="middle" font-family="Noto Sans SC, sans-serif" font-size="11" font-weight="bold" fill="#1A73E8">服务对象：分析师 与 管理层</text>
+
+  <!-- ==================== -->
+  <!-- AGENT ①: 监控 Agent  -->
+  <!-- ==================== -->
+  <rect x="65" y="345" width="690" height="210" rx="14" fill="#FFFFFF" stroke="#A8C7FA" stroke-width="2"/>
+  <rect x="65" y="345" width="7" height="210" rx="3.5" fill="#1A73E8"/>
+
+  <!-- Agent number & title -->
+  <circle cx="100" cy="382" r="19" fill="#1A73E8"/>
+  <text x="100" y="389" text-anchor="middle" font-family="Noto Sans SC, sans-serif" font-size="17" font-weight="bold" fill="#FFFFFF">1</text>
+
+  <text x="130" y="382" font-family="Noto Sans SC, sans-serif" font-size="20" font-weight="bold" fill="#174EA6">监控 Agent</text>
+
+  <!-- Trigger badge -->
+  <rect x="310" y="367" width="140" height="26" rx="13" fill="#E8F0FE"/>
+  <text x="380" y="385" text-anchor="middle" font-family="Noto Sans SC, sans-serif" font-size="11" fill="#1A73E8">系统自动巡检</text>
+
+  <!-- Core capability -->
+  <text x="130" y="412" font-family="Noto Sans SC, sans-serif" font-size="14" fill="#5F6368">分钟级多维度巡检 · 3600+ 维度组合 · 异常检测 → 主动告警</text>
+
+  <!-- Example card -->
+  <rect x="95" y="432" width="635" height="56" rx="8" fill="#F8F9FC" stroke="#E8EAED" stroke-width="1"/>
+  <text x="115" y="452" font-family="Noto Sans SC, sans-serif" font-size="11" fill="#9AA0A6">异常告警示例：</text>
+  <text x="225" y="452" font-family="Noto Sans SC, sans-serif" font-size="13" fill="#3C4043">"到达率骤降 37%，影响 小米 — 广东 通道，建议立即排查"</text>
+  <text x="115" y="474" font-family="Noto Sans SC, sans-serif" font-size="11" fill="#80868B">T+0 分钟级告警，替代 T+1 发现，覆盖发送/到达/展示/打开全漏斗</text>
+
+  <!-- Capability tags -->
+  <rect x="95" y="500" width="130" height="26" rx="13" fill="#E8F0FE"/>
+  <text x="160" y="518" text-anchor="middle" font-family="Noto Sans SC, sans-serif" font-size="10" fill="#1A73E8">到达率监控</text>
+  <rect x="238" y="500" width="130" height="26" rx="13" fill="#E8F0FE"/>
+  <text x="303" y="518" text-anchor="middle" font-family="Noto Sans SC, sans-serif" font-size="10" fill="#1A73E8">打开率监控</text>
+  <rect x="381" y="500" width="130" height="26" rx="13" fill="#E8F0FE"/>
+  <text x="446" y="518" text-anchor="middle" font-family="Noto Sans SC, sans-serif" font-size="10" fill="#1A73E8">厂商维度</text>
+  <rect x="524" y="500" width="130" height="26" rx="13" fill="#E8F0FE"/>
+  <text x="589" y="518" text-anchor="middle" font-family="Noto Sans SC, sans-serif" font-size="10" fill="#1A73E8">省份维度</text>
+  <rect x="667" y="500" width="70" height="26" rx="13" fill="#E8F0FE"/>
+  <text x="702" y="518" text-anchor="middle" font-family="Noto Sans SC, sans-serif" font-size="10" fill="#1A73E8">...</text>
+
+  <!-- Arrow: Agent 1 → Agent 2 -->
+  <polyline points="410,555 410,585 410,600" fill="none" stroke="#1A73E8" stroke-width="2.5" marker-end="url(#arrowBlue)"/>
+  <text x="425" y="583" font-family="Noto Sans SC, sans-serif" font-size="10" font-weight="bold" fill="#1A73E8">告警触发</text>
+
+  <!-- ====================== -->
+  <!-- AGENT ②: 归因 Agent    -->
+  <!-- ====================== -->
+  <rect x="65" y="610" width="690" height="210" rx="14" fill="#FFFFFF" stroke="#A8C7FA" stroke-width="2"/>
+  <rect x="65" y="610" width="7" height="210" rx="3.5" fill="#1A73E8"/>
+
+  <circle cx="100" cy="647" r="19" fill="#1A73E8"/>
+  <text x="100" y="654" text-anchor="middle" font-family="Noto Sans SC, sans-serif" font-size="17" font-weight="bold" fill="#FFFFFF">2</text>
+
+  <text x="130" y="647" font-family="Noto Sans SC, sans-serif" font-size="20" font-weight="bold" fill="#174EA6">归因 Agent</text>
+
+  <!-- Trigger badges -->
+  <rect x="310" y="632" width="120" height="26" rx="13" fill="#FCE8E6"/>
+  <text x="370" y="650" text-anchor="middle" font-family="Noto Sans SC, sans-serif" font-size="11" fill="#C5221F">告警触发</text>
+  <rect x="440" y="632" width="120" height="26" rx="13" fill="#E8F0FE"/>
+  <text x="500" y="650" text-anchor="middle" font-family="Noto Sans SC, sans-serif" font-size="11" fill="#1A73E8">手动触发</text>
+
+  <!-- Core capability -->
+  <text x="130" y="677" font-family="Noto Sans SC, sans-serif" font-size="14" fill="#5F6368">自动切维度下钻 · 漏斗定位 → 根因推断 · 3-5 分钟输出归因报告</text>
+
+  <!-- Example card -->
+  <rect x="95" y="697" width="635" height="56" rx="8" fill="#F8F9FC" stroke="#E8EAED" stroke-width="1"/>
+  <text x="115" y="717" font-family="Noto Sans SC, sans-serif" font-size="11" fill="#9AA0A6">归因结论：</text>
+  <text x="205" y="717" font-family="Noto Sans SC, sans-serif" font-size="13" fill="#3C4043">"80% 降幅来自 广东省 小米通道 到达率下降，关联编辑排班变动"</text>
+  <text x="115" y="739" font-family="Noto Sans SC, sans-serif" font-size="11" fill="#80868B">自动下钻 6 维度（发送类型 / 平台 / 厂商 / 省份 / 频道 / 内容属性），替代手工排查 1-2 小时</text>
+
+  <!-- Tags -->
+  <rect x="95" y="765" width="140" height="26" rx="13" fill="#E8F0FE"/>
+  <text x="165" y="783" text-anchor="middle" font-family="Noto Sans SC, sans-serif" font-size="10" fill="#1A73E8">发送类型下钻</text>
+  <rect x="248" y="765" width="140" height="26" rx="13" fill="#E8F0FE"/>
+  <text x="318" y="783" text-anchor="middle" font-family="Noto Sans SC, sans-serif" font-size="10" fill="#1A73E8">厂商通道分析</text>
+  <rect x="401" y="765" width="140" height="26" rx="13" fill="#E8F0FE"/>
+  <text x="471" y="783" text-anchor="middle" font-family="Noto Sans SC, sans-serif" font-size="10" fill="#1A73E8">漏斗定位</text>
+  <rect x="554" y="765" width="140" height="26" rx="13" fill="#E8F0FE"/>
+  <text x="624" y="783" text-anchor="middle" font-family="Noto Sans SC, sans-serif" font-size="10" fill="#1A73E8">关联分析</text>
+  <rect x="707" y="765" width="40" height="26" rx="13" fill="#E8F0FE"/>
+  <text x="727" y="783" text-anchor="middle" font-family="Noto Sans SC, sans-serif" font-size="10" fill="#1A73E8">...</text>
+
+  <!-- Arrow: Agent 2 → Agent 4 -->
+  <polyline points="410,820 410,850 410,865" fill="none" stroke="#1A73E8" stroke-width="2.5" marker-end="url(#arrowBlue)"/>
+  <text x="425" y="848" font-family="Noto Sans SC, sans-serif" font-size="10" font-weight="bold" fill="#1A73E8">输出归因结论</text>
+
+  <!-- ====================== -->
+  <!-- AGENT ④: 策略 Agent    -->
+  <!-- ====================== -->
+  <rect x="65" y="875" width="690" height="210" rx="14" fill="#FFFFFF" stroke="#A8C7FA" stroke-width="2"/>
+  <rect x="65" y="875" width="7" height="210" rx="3.5" fill="#1A73E8"/>
+
+  <circle cx="100" cy="912" r="19" fill="#1A73E8"/>
+  <text x="100" y="919" text-anchor="middle" font-family="Noto Sans SC, sans-serif" font-size="17" font-weight="bold" fill="#FFFFFF">4</text>
+
+  <text x="130" y="912" font-family="Noto Sans SC, sans-serif" font-size="20" font-weight="bold" fill="#174EA6">策略 Agent</text>
+
+  <!-- Trigger badge -->
+  <rect x="310" y="897" width="140" height="26" rx="13" fill="#E8F0FE"/>
+  <text x="380" y="915" text-anchor="middle" font-family="Noto Sans SC, sans-serif" font-size="11" fill="#1A73E8">归因触发</text>
+
+  <!-- Core capability -->
+  <text x="130" y="942" font-family="Noto Sans SC, sans-serif" font-size="14" fill="#5F6368">建议生成 → 效果预估 · 执行跟踪 → 闭环验证</text>
+
+  <!-- Example card -->
+  <rect x="95" y="962" width="635" height="56" rx="8" fill="#F8F9FC" stroke="#E8EAED" stroke-width="1"/>
+  <text x="115" y="982" font-family="Noto Sans SC, sans-serif" font-size="11" fill="#9AA0A6">优化建议：</text>
+  <text x="205" y="982" font-family="Noto Sans SC, sans-serif" font-size="13" fill="#3C4043">"增发广东本地 Push 5-8 条，预计提升打开 UV 1,200，建议 3 日后验证"</text>
+  <text x="115" y="1004" font-family="Noto Sans SC, sans-serif" font-size="11" fill="#80868B">解决「分析建议缺乏执行跟踪闭环」痛点 · 建议 → 执行 → 验证全链路</text>
+
+  <!-- Tags -->
+  <rect x="95" y="1030" width="130" height="26" rx="13" fill="#E8F0FE"/>
+  <text x="160" y="1048" text-anchor="middle" font-family="Noto Sans SC, sans-serif" font-size="10" fill="#1A73E8">策略生成</text>
+  <rect x="238" y="1030" width="130" height="26" rx="13" fill="#E8F0FE"/>
+  <text x="303" y="1048" text-anchor="middle" font-family="Noto Sans SC, sans-serif" font-size="10" fill="#1A73E8">效果预估</text>
+  <rect x="381" y="1030" width="130" height="26" rx="13" fill="#E8F0FE"/>
+  <text x="446" y="1048" text-anchor="middle" font-family="Noto Sans SC, sans-serif" font-size="10" fill="#1A73E8">执行跟踪</text>
+  <rect x="524" y="1030" width="130" height="26" rx="13" fill="#E8F0FE"/>
+  <text x="589" y="1048" text-anchor="middle" font-family="Noto Sans SC, sans-serif" font-size="10" fill="#1A73E8">闭环验证</text>
+
+  <!-- ============================================ -->
+  <!-- LEFT CHANNEL FOOTER                          -->
+  <!-- ============================================ -->
+  <rect x="65" y="1110" width="690" height="42" rx="10" fill="#E8F0FE" stroke="#A8C7FA" stroke-width="1"/>
+  <text x="410" y="1130" text-anchor="middle" font-family="Noto Sans SC, sans-serif" font-size="13" font-weight="bold" fill="#1A73E8">监控 → 归因 → 策略 · 全自动闭环</text>
+  <text x="410" y="1145" text-anchor="middle" font-family="Noto Sans SC, sans-serif" font-size="10" fill="#5F6368">从异常发现到策略执行，无需人工介入</text>
+
+  <!-- ============================================ -->
+  <!-- RIGHT CHANNEL: 自助取数通道                    -->
+  <!-- ============================================ -->
+  <rect x="820" y="225" width="740" height="1040" rx="16" fill="#F4FAF5" fill-opacity="0.6" stroke="#C0E8CF" stroke-width="1.5"/>
+
+  <!-- Right Channel Header -->
+  <rect x="820" y="225" width="740" height="58" rx="16" fill="#0D904F"/>
+  <rect x="820" y="267" width="740" height="16" fill="#0D904F"/>
+  <text x="1190" y="250" text-anchor="middle" font-family="Noto Sans SC, sans-serif" font-size="19" font-weight="bold" fill="#FFFFFF">自 助 取 数 通 道</text>
+  <text x="1190" y="271" text-anchor="middle" font-family="Noto Sans SC, sans-serif" font-size="11" fill="#C0E8CF">独立运营 · 直接面向业务方 · 不经过分析师</text>
+
+  <!-- Service target badge -->
+  <rect x="1030" y="295" width="300" height="28" rx="14" fill="#E6F4EA" stroke="#81C995" stroke-width="1"/>
+  <text x="1180" y="314" text-anchor="middle" font-family="Noto Sans SC, sans-serif" font-size="11" font-weight="bold" fill="#0D904F">服务对象：编辑老师 与 业务方</text>
+
+  <!-- ====================== -->
+  <!-- AGENT ③: 问答 Agent    -->
+  <!-- ====================== -->
+  <rect x="845" y="345" width="690" height="440" rx="14" fill="#FFFFFF" stroke="#81C995" stroke-width="2"/>
+  <rect x="845" y="345" width="7" height="440" rx="3.5" fill="#0D904F"/>
+
+  <!-- Agent number & title -->
+  <circle cx="880" cy="382" r="19" fill="#0D904F"/>
+  <text x="880" y="389" text-anchor="middle" font-family="Noto Sans SC, sans-serif" font-size="17" font-weight="bold" fill="#FFFFFF">3</text>
+
+  <text x="910" y="382" font-family="Noto Sans SC, sans-serif" font-size="20" font-weight="bold" fill="#137333">问答 Agent</text>
+
+  <!-- Availability badge -->
+  <rect x="1100" y="367" width="140" height="26" rx="13" fill="#E6F4EA"/>
+  <text x="1170" y="385" text-anchor="middle" font-family="Noto Sans SC, sans-serif" font-size="11" fill="#0D904F">7 x 24 全天候可用</text>
+
+  <!-- Core capability -->
+  <text x="910" y="412" font-family="Noto Sans SC, sans-serif" font-size="14" fill="#5F6368">自然语言 → SQL 生成 → 数据库查询 → 格式化即时返回</text>
+
+  <!-- ===== Process Flow Diagram inside Agent Card ===== -->
+  <!-- Flow: NL → SQL → DB → Result -->
+  <rect x="875" y="432" width="145" height="40" rx="8" fill="#E6F4EA"/>
+  <text x="948" y="457" text-anchor="middle" font-family="Noto Sans SC, sans-serif" font-size="12" font-weight="bold" fill="#137333">自然语言</text>
+
+  <polyline points="1020,452 1040,452" fill="none" stroke="#0D904F" stroke-width="2" marker-end="url(#arrowGreen)"/>
+
+  <rect x="1045" y="432" width="145" height="40" rx="8" fill="#E6F4EA"/>
+  <text x="1118" y="457" text-anchor="middle" font-family="Noto Sans SC, sans-serif" font-size="12" font-weight="bold" fill="#137333">SQL 生成</text>
+
+  <polyline points="1190,452 1210,452" fill="none" stroke="#0D904F" stroke-width="2" marker-end="url(#arrowGreen)"/>
+
+  <rect x="1215" y="432" width="145" height="40" rx="8" fill="#E6F4EA"/>
+  <text x="1288" y="457" text-anchor="middle" font-family="Noto Sans SC, sans-serif" font-size="12" font-weight="bold" fill="#137333">数据库查询</text>
+
+  <polyline points="1360,452 1380,452" fill="none" stroke="#0D904F" stroke-width="2" marker-end="url(#arrowGreen)"/>
+
+  <rect x="1385" y="432" width="125" height="40" rx="8" fill="#0D904F"/>
+  <text x="1448" y="457" text-anchor="middle" font-family="Noto Sans SC, sans-serif" font-size="12" font-weight="bold" fill="#FFFFFF">即时返回</text>
+
+  <!-- ===== Conversation Demo ===== -->
+  <!-- User query bubble -->
+  <rect x="875" y="495" width="630" height="46" rx="10" fill="#E6F4EA"/>
+  <polygon points="890,495 880,485 900,495" fill="#E6F4EA"/>
+  <text x="895" y="516" font-family="Noto Sans SC, sans-serif" font-size="11" fill="#80868B">编辑提问：</text>
+  <text x="975" y="516" font-family="Noto Sans SC, sans-serif" font-size="14" fill="#3C4043">"广东省上月小米 open UV？"</text>
+  <text x="895" y="533" font-family="Noto Sans SC, sans-serif" font-size="10" fill="#9AA0A6">自然语言输入，无需掌握 SQL</text>
+
+  <!-- Response arrow -->
+  <line x1="1190" y1="541" x2="1190" y2="558" stroke="#80868B" stroke-width="1.5" marker-end="url(#arrowGray)"/>
+
+  <!-- Agent response bubble -->
+  <rect x="875" y="562" width="630" height="60" rx="10" fill="#F8F9FC" stroke="#DADCE0" stroke-width="1"/>
+  <text x="895" y="583" font-family="Noto Sans SC, sans-serif" font-size="11" fill="#80868B">Agent 即时返回：</text>
+  <text x="1005" y="583" font-family="Noto Sans SC, sans-serif" font-size="14" fill="#3C4043">📊 广东省上月小米 open UV = 12,580</text>
+  <text x="895" y="605" font-family="Noto Sans SC, sans-serif" font-size="11" fill="#80868B">⏱ 30 秒返回  ·  🔔 可订阅  ·  ⚠ 异常自动标注</text>
+
+  <!-- Key features -->
+  <rect x="875" y="640" width="630" height="125" rx="8" fill="#F4FAF5"/>
+
+  <text x="895" y="662" font-family="Noto Sans SC, sans-serif" font-size="13" font-weight="bold" fill="#137333">核心能力</text>
+
+  <circle cx="900" cy="682" r="3.5" fill="#0D904F"/>
+  <text x="912" y="686" font-family="Noto Sans SC, sans-serif" font-size="12" fill="#3C4043">30 秒内返回取数结果，替代编辑等分析师半天排队的痛点（最高频痛点）</text>
+
+  <circle cx="900" cy="706" r="3.5" fill="#0D904F"/>
+  <text x="912" y="710" font-family="Noto Sans SC, sans-serif" font-size="12" fill="#3C4043">支持数据订阅与定期推送，异常指标自动红色标注</text>
+
+  <circle cx="900" cy="730" r="3.5" fill="#0D904F"/>
+  <text x="912" y="734" font-family="Noto Sans SC, sans-serif" font-size="12" fill="#3C4043">独立通道，不经过分析师，解放分析师 60% 重复劳动时间</text>
+
+  <circle cx="900" cy="754" r="3.5" fill="#0D904F"/>
+  <text x="912" y="758" font-family="Noto Sans SC, sans-serif" font-size="12" fill="#3C4043">覆盖发送/到达/展示/打开全漏斗数据 + 六大维度交叉查询</text>
+
+  <!-- ============================================ -->
+  <!-- RIGHT CHANNEL FOOTER                          -->
+  <!-- ============================================ -->
+  <rect x="845" y="810" width="690" height="42" rx="10" fill="#E6F4EA" stroke="#81C995" stroke-width="1"/>
+  <text x="1190" y="830" text-anchor="middle" font-family="Noto Sans SC, sans-serif" font-size="13" font-weight="bold" fill="#0D904F">自然语言 → SQL → 结果 · 即时响应</text>
+  <text x="1190" y="845" text-anchor="middle" font-family="Noto Sans SC, sans-serif" font-size="10" fill="#5F6368">编辑自助取数，30 秒出结果，不需等半天</text>
+
+  <!-- ============================================ -->
+  <!-- BOTTOM: GLOBAL FOOTER                        -->
+  <!-- ============================================ -->
+  <rect x="40" y="1180" width="1520" height="42" rx="10" fill="#F1F3F4"/>
+  <text x="800" y="1202" text-anchor="middle" font-family="Noto Sans SC, sans-serif" font-size="12" fill="#80868B">双通道架构：主动分析通道（监控→归因→策略）+ 自助取数通道（问答 Agent）</text>
+  <text x="800" y="1216" text-anchor="middle" font-family="Noto Sans SC, sans-serif" font-size="11" fill="#9AA0A6">日均发送 2,600 万条 · DAU 358 万 · 六大维度分析 · 3600+ 维度组合 · 四 Agent 各司其职、完全解耦</text>
+
+  <!-- ============================================ -->
+  <!-- DECORATIVE ELEMENTS                          -->
+  <!-- ============================================ -->
+
+  <!-- Top-right decorative: small circles -->
+  <circle cx="1530" cy="30" r="3" fill="#DADCE0"/>
+  <circle cx="1545" cy="30" r="3" fill="#DADCE0"/>
+  <circle cx="1560" cy="30" r="3" fill="#DADCE0"/>
+
+  <!-- Priority indicators inside left channel -->
+  <rect x="580" y="345" width="12" height="210" rx="2" fill="#E8F0FE"/>
+  <text x="586" y="455" font-family="Noto Sans SC, sans-serif" font-size="9" fill="#1A73E8" transform="rotate(-90, 586, 455)">P2</text>
+
+  <rect x="580" y="610" width="12" height="210" rx="2" fill="#E8F0FE"/>
+  <text x="586" y="720" font-family="Noto Sans SC, sans-serif" font-size="9" fill="#1A73E8" transform="rotate(-90, 586, 720)">P1</text>
+
+  <rect x="580" y="875" width="12" height="210" rx="2" fill="#E8F0FE"/>
+  <text x="586" y="985" font-family="Noto Sans SC, sans-serif" font-size="9" fill="#1A73E8" transform="rotate(-90, 586, 985)">P3</text>
+
+  <!-- Priority indicator for Q&A Agent -->
+  <rect x="1360" y="345" width="12" height="440" rx="2" fill="#E6F4EA"/>
+  <text x="1366" y="570" font-family="Noto Sans SC, sans-serif" font-size="9" fill="#0D904F" transform="rotate(-90, 1366, 570)">P0</text>
+
+  <!-- Bottom priority legend -->
+  <rect x="45" y="1245" width="12" height="12" rx="2" fill="#E6F4EA"/>
+  <text x="63" y="1256" font-family="Noto Sans SC, sans-serif" font-size="10" fill="#80868B">P0 最高优先</text>
+  <rect x="155" y="1245" width="12" height="12" rx="2" fill="#E8F0FE"/>
+  <text x="173" y="1256" font-family="Noto Sans SC, sans-serif" font-size="10" fill="#80868B">P1</text>
+  <rect x="210" y="1245" width="12" height="12" rx="2" fill="#E8F0FE"/>
+  <text x="228" y="1256" font-family="Noto Sans SC, sans-serif" font-size="10" fill="#80868B">P2</text>
+  <rect x="265" y="1245" width="12" height="12" rx="2" fill="#E8F0FE"/>
+  <text x="283" y="1256" font-family="Noto Sans SC, sans-serif" font-size="10" fill="#80868B">P3</text>
+
+</svg>
