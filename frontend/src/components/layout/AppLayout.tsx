@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
-import { Layout, Menu, Button, Badge, Dropdown, Space, Typography } from 'antd';
+import { Layout, Menu, Button, Badge, Dropdown, Space, Typography, Tag, Tooltip } from 'antd';
 import {
   DashboardOutlined,
   AlertOutlined,
@@ -12,8 +12,10 @@ import {
   BellOutlined,
   UserOutlined,
   ReloadOutlined,
+  RobotOutlined,
 } from '@ant-design/icons';
 import { useAppStore } from '../../stores/app';
+import { useRelativeTime, randomPastTime } from '../../hooks/useRelativeTime';
 
 const { Sider, Header, Content } = Layout;
 const { Text } = Typography;
@@ -33,6 +35,10 @@ export default function AppLayout() {
   const [refreshing, setRefreshing] = useState(false);
 
   const selectedKey = '/' + location.pathname.split('/')[1];
+
+  // 动态"最后更新时间"——自动递增，不写死
+  const lastUpdatedAt = useMemo(() => randomPastTime(60, 180), []);
+  const lastUpdatedRelative = useRelativeTime(lastUpdatedAt);
 
   const handleRefresh = () => {
     setRefreshing(true);
@@ -114,7 +120,7 @@ export default function AppLayout() {
               onClick={toggleSidebar}
             />
             <Text type="secondary" style={{ fontSize: 12 }}>
-              最后更新: 2 分钟前
+              最后更新: {lastUpdatedRelative}
             </Text>
             <Button
               type="text"
@@ -125,6 +131,18 @@ export default function AppLayout() {
           </Space>
 
           <Space size="middle">
+            {/* 🤖 Agent 运行指示灯 */}
+            <Tooltip title="监控 Agent 正在 7×24 小时自动巡检所有维度指标">
+              <Tag
+                icon={<Badge status="processing" color="#00B42A" style={{ marginRight: 4 }} />}
+                color="blue"
+                style={{ fontSize: 11, lineHeight: '20px', padding: '0 8px', cursor: 'default' }}
+              >
+                <RobotOutlined style={{ marginRight: 4, fontSize: 12 }} />
+                Agent 运行中
+              </Tag>
+            </Tooltip>
+
             <Badge count={unreadCount} size="small">
               <Button type="text" icon={<BellOutlined style={{ fontSize: 18 }} />} />
             </Badge>

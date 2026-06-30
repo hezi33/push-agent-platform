@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
+import { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Row, Col, Card, Statistic, Table, Tag, Space, Typography, Spin, Tooltip,
@@ -15,7 +16,9 @@ import type { ColumnsType } from 'antd/es/table';
 import ReactECharts from 'echarts-for-react';
 import TrendLineChart from '../../components/charts/TrendLineChart';
 import FunnelSankey from '../../components/charts/FunnelSankey';
+import AgentStatusBar, { AIDetectedBadge, AgentThinkingBadge } from '../../components/common/AgentStatusBar';
 import { mockDashboardData } from '../../mocks/data/dashboard';
+import { randomPastTime } from '../../hooks/useRelativeTime';
 import type { AlertItem, KPICardData } from '../../types';
 import {
   ALERT_LEVEL_COLORS,
@@ -34,6 +37,9 @@ const { Text, Title } = Typography;
 
 export default function Dashboard() {
   const navigate = useNavigate();
+
+  // 动态生成"上次巡检时间"——每次渲染都不一样，且在 30s~5min 前随机
+  const lastScanTime = useMemo(() => randomPastTime(30, 300), []);
 
   // 使用 TanStack Query 获取数据（当前用 Mock 直接赋值）
   const { data, isLoading } = useQuery({
@@ -57,8 +63,17 @@ export default function Dashboard() {
 
   if (!data) return null;
 
+  const unreadAlerts = data.alertList.filter((a) => !a.isRead).length;
+
   return (
     <div>
+      {/* ── 🤖 Agent 状态栏 ── */}
+      <AgentStatusBar
+        lastScanTime={lastScanTime}
+        dimensionsCovered={3650}
+        activeAlerts={data.alertList.filter((a) => a.level !== 'S03').length}
+      />
+
       {/* ── KPI 数据卡片 ── */}
       <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
         {data.kpiCards.map((card) => (
@@ -109,7 +124,8 @@ export default function Dashboard() {
           <Space>
             <ExclamationCircleOutlined style={{ color: '#F53F3F' }} />
             <span>异常告警列表</span>
-            <Tag color="red">{data.alertList.filter((a) => !a.isRead).length} 条未读</Tag>
+            <Tag color="red">{unreadAlerts} 条未读</Tag>
+            <AIDetectedBadge />
           </Space>
         }
         bordered={false}
@@ -331,6 +347,17 @@ const alertColumns: ColumnsType<AlertItem> = [
     },
     sorter: (a, b) => new Date(b.detectedAt).getTime() - new Date(a.detectedAt).getTime(),
     defaultSortOrder: 'descend',
+  },
+  {
+    title: 'AI 检测',
+    key: 'ai',
+    width: 100,
+    render: (_: unknown, record: AlertItem) => (
+      <Space>
+        <AIDetectedBadge />
+        <AgentThinkingBadge status={record.attributionStatus} />
+      </Space>
+    ),
   },
   {
     title: '归因状态',
