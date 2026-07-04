@@ -15,7 +15,6 @@ import {
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import { mockAlertList } from '../../mocks/data/dashboard';
-import { getStrategyList } from '../../mocks/data/strategy';
 import type { AlertItem } from '../../types';
 import {
   ALERT_LEVEL_COLORS,

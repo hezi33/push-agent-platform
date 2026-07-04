@@ -1,6 +1,6 @@
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import {
-  Row, Col, Card, Tag, Space, Typography, Button, Steps, Statistic, Descriptions, List, Alert, Tooltip,
+  Row, Col, Card, Tag, Space, Typography, Button, Steps, Statistic, Descriptions, List, Alert, Tooltip, message,
 } from 'antd';
 import {
   ArrowLeftOutlined,
@@ -33,7 +33,7 @@ export default function Strategy() {
     return <StrategyList onSelect={(id) => navigate(`/strategy/${id}`)} />;
   }
 
-  const data = getStrategyDetail();
+  const data = getStrategyDetail(suggestionId);
 
   return (
     <div>
@@ -204,22 +204,22 @@ export default function Strategy() {
         <Space>
           {data.status === 'S11' && (
             <>
-              <Button type="primary" icon={<CheckCircleOutlined />}>审核通过并推送</Button>
-              <Button danger>驳回并修改</Button>
+              <Button type="primary" icon={<CheckCircleOutlined />} onClick={() => message.success('建议已审核通过，已推送至编辑')}>审核通过并推送</Button>
+              <Button danger onClick={() => message.info('建议已驳回')}>驳回并修改</Button>
             </>
           )}
           {data.status === 'S13' && (
             <Button type="primary" icon={<CheckCircleOutlined />} onClick={() => navigate('/history')}>
-              查看效果趋势
+              查看处理记录
             </Button>
           )}
           {data.status === 'S16' && (
             <>
-              <Button type="primary" danger icon={<ExclamationCircleOutlined />}>再次提醒编辑</Button>
-              <Button>升级抄送组长</Button>
+              <Button type="primary" danger icon={<ExclamationCircleOutlined />} onClick={() => message.success('已再次提醒编辑')}>再次提醒编辑</Button>
+              <Button onClick={() => message.success('已抄送组长')}>升级抄送组长</Button>
             </>
           )}
-          <Button onClick={() => navigate('/attribution/ATTR-' + fmtToday())}>返回归因报告</Button>
+          <Button onClick={() => navigate('/attribution/ATTR-' + fmtToday() + '-002')}>返回归因报告</Button>
         </Space>
       </Card>
     </div>

@@ -1,19 +1,11 @@
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import {
-  Row, Col, Card, Tag, Space, Typography, Button, Descriptions, Timeline, Tabs, Spin, Result,
+  Row, Col, Card, Tag, Space, Typography, Button, Descriptions, Timeline, Tabs, Spin, Result, message,
 } from 'antd';
 import {
-  ArrowLeftOutlined,
-  SearchOutlined,
-  BellOutlined,
-  ThunderboltOutlined,
-  ExclamationCircleOutlined,
-  WarningOutlined,
-  InfoCircleOutlined,
-  RobotOutlined,
-  ClockCircleOutlined,
-  CheckCircleOutlined,
-  SyncOutlined,
+  ArrowLeftOutlined, SearchOutlined, BellOutlined, ThunderboltOutlined,
+  ExclamationCircleOutlined, WarningOutlined, InfoCircleOutlined,
+  RobotOutlined, ClockCircleOutlined, CheckCircleOutlined, SyncOutlined,
 } from '@ant-design/icons';
 import DeviationTrendChart from '../../components/charts/DeviationTrendChart';
 import DimensionCompareChart from '../../components/charts/DimensionCompareChart';
@@ -281,18 +273,18 @@ function AlertBanner({ data, onTriggerAttribution }: { data: AnomalyDetailData; 
                 Agent 归因中...
               </Button>
             ) : isAttributionDone ? (
-              <Button type="primary" icon={<SearchOutlined />} onClick={() => navigate(`/attribution/ATTR-${data.alertId.replace('ALT-', '')}`)}>
+              <Button type="primary" icon={<SearchOutlined />} onClick={() => navigate(`/attribution/ATTR-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-002?from=workbench`)}>
                 查看归因报告
               </Button>
             ) : (
-              <Button type="primary" icon={<SearchOutlined />} onClick={onTriggerAttribution}>
-                触发归因分析
+              <Button type="primary" icon={<SearchOutlined />} onClick={() => navigate('/workbench?alertId=' + data.alertId)}>
+                在 Agent 工作台中分析
               </Button>
             )}
-            <Button icon={<BellOutlined />}>
+            <Button icon={<BellOutlined />} onClick={() => message.success('已订阅该告警的状态更新')}>
               订阅更新
             </Button>
-            <Button danger>
+            <Button danger onClick={() => message.info('告警已忽略')}>
               忽略告警
             </Button>
           </Space>

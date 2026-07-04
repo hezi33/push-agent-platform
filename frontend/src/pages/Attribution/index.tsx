@@ -1,7 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import {
-  Row, Col, Card, Tag, Space, Typography, Button, Steps, Progress, Descriptions, Collapse, Alert, Tooltip,
+  Row, Col, Card, Tag, Space, Typography, Button, Steps, Progress, Descriptions, Collapse, Alert, Tooltip, message,
 } from 'antd';
 import {
   ArrowLeftOutlined,
@@ -34,11 +34,15 @@ export default function Attribution() {
   // 如果有 reportId → 展示已完成报告；否则模拟进行中再切换
   const [simulating, setSimulating] = useState(!reportId);
   const progress = getAttributionProgress();
+  const timerRef = useRef<ReturnType<typeof setTimeout>>();
 
   // 模拟 3 秒后归因完成
-  if (simulating) {
-    setTimeout(() => setSimulating(false), 3000);
-  }
+  useEffect(() => {
+    if (simulating) {
+      timerRef.current = setTimeout(() => setSimulating(false), 3000);
+    }
+    return () => { if (timerRef.current) clearTimeout(timerRef.current); };
+  }, [simulating]);
 
   if (simulating) {
     return <AttributionProgressView steps={progress.steps} currentStep={progress.currentStep} />;
@@ -138,12 +142,12 @@ export default function Attribution() {
       {/* 底部操作 */}
       <Card bordered={false} style={{ marginTop: 16 }}>
         <Space size="middle">
-          <Button type="primary" icon={<CheckCircleOutlined />}>
+          <Button type="primary" icon={<CheckCircleOutlined />} onClick={() => message.success('归因已确认，策略 Agent 已自动触发')}>
             确认归因
           </Button>
-          <Button>修改结论</Button>
-          <Button>重新归因</Button>
-          <Button type="primary" icon={<ThunderboltOutlined />} onClick={() => navigate('/strategy/SUG-' + data.reportId.replace('ATTR-', ''))} ghost>
+          <Button onClick={() => message.info('修改结论功能待接入')}>修改结论</Button>
+          <Button onClick={() => { setSimulating(true); message.info('正在重新启动归因分析...'); }}>重新归因</Button>
+          <Button type="primary" icon={<ThunderboltOutlined />} onClick={() => navigate('/strategy/SUG-' + new Date().toISOString().slice(0, 10).replace(/-/g, '') + '-001')} ghost>
             生成策略建议
           </Button>
         </Space>
