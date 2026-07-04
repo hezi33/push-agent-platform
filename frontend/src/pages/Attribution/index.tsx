@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Row, Col, Card, Tag, Space, Typography, Button, Steps, Progress, Descriptions, Collapse, Alert, Tooltip,
 } from 'antd';
@@ -28,6 +28,8 @@ const { Text, Title, Paragraph } = Typography;
 export default function Attribution() {
   const { reportId } = useParams<{ reportId: string }>();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const fromWorkbench = searchParams.get('from') === 'workbench';
 
   // 如果有 reportId → 展示已完成报告；否则模拟进行中再切换
   const [simulating, setSimulating] = useState(!reportId);
@@ -49,7 +51,13 @@ export default function Attribution() {
     <div>
       {/* 面包屑 */}
       <Space style={{ marginBottom: 16 }}>
-        <Button type="text" icon={<ArrowLeftOutlined />} onClick={() => navigate('/dashboard')}>返回看板</Button>
+        {fromWorkbench ? (
+          <Button type="primary" size="small" icon={<ArrowLeftOutlined />} onClick={() => navigate('/workbench')}>
+            返回 Agent 工作台
+          </Button>
+        ) : (
+          <Button type="text" icon={<ArrowLeftOutlined />} onClick={() => navigate('/dashboard')}>返回看板</Button>
+        )}
         <Text type="secondary">/</Text>
         <Text strong>归因分析报告</Text>
         <Text type="secondary">/</Text>

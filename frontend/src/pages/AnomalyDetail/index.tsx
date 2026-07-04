@@ -1,4 +1,4 @@
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Row, Col, Card, Tag, Space, Typography, Button, Descriptions, Timeline, Tabs, Spin, Result,
 } from 'antd';
@@ -36,6 +36,8 @@ const { Text, Title, Paragraph } = Typography;
 export default function AnomalyDetail() {
   const { alertId } = useParams<{ alertId: string }>();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const fromWorkbench = searchParams.get('from') === 'workbench';
 
   if (!alertId) {
     return (
@@ -56,9 +58,15 @@ export default function AnomalyDetail() {
     <div>
       {/* ── 面包屑 ── */}
       <Space style={{ marginBottom: 16 }}>
-        <Button type="text" icon={<ArrowLeftOutlined />} onClick={() => navigate('/dashboard')}>
-          返回看板
-        </Button>
+        {fromWorkbench ? (
+          <Button type="primary" size="small" icon={<ArrowLeftOutlined />} onClick={() => navigate('/workbench')}>
+            返回 Agent 工作台
+          </Button>
+        ) : (
+          <Button type="text" icon={<ArrowLeftOutlined />} onClick={() => navigate('/dashboard')}>
+            返回看板
+          </Button>
+        )}
         <Text type="secondary">/</Text>
         <Text>异常详情</Text>
         <Text type="secondary">/</Text>
