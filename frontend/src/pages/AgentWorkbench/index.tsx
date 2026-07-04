@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import {
-  Layout, Card, Tag, Space, Typography, Button, Progress, Badge, Tooltip, Segmented, Collapse, Descriptions, Divider,
+  Card, Tag, Space, Typography, Button, Progress, Badge, Tooltip, Segmented, Collapse, Descriptions, Divider, Row, Col,
 } from 'antd';
 import {
   RobotOutlined,
@@ -26,7 +26,6 @@ import { mockToolCallLogs, mockPipelineAgents } from '../../mocks/data/agentWork
 import { STATUS_COLORS, STATUS_LABELS } from '../../theme/colors';
 
 const { Text, Title, Paragraph } = Typography;
-const { Sider, Content } = Layout;
 
 // ============================================================
 // Agent 工作台 — 主页面
