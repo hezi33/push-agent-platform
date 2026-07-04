@@ -1,519 +1,511 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import {
-  Card, Tag, Space, Typography, Button, Progress, Badge, Tooltip, Segmented, Collapse, Descriptions, Divider, Row, Col,
+  Card, Tag, Space, Typography, Button, Progress, Tooltip, Input, Divider, Collapse, Row, Col,
 } from 'antd';
 import {
   RobotOutlined,
+  UserOutlined,
   SearchOutlined,
   ThunderboltOutlined,
   CheckCircleOutlined,
   SyncOutlined,
   ClockCircleOutlined,
-  ExclamationCircleOutlined,
   ArrowLeftOutlined,
+  SendOutlined,
   CodeOutlined,
-  PlayCircleOutlined,
-  ReloadOutlined,
   CaretRightOutlined,
+  ExclamationCircleOutlined,
+  BulbOutlined,
+  QuestionCircleOutlined,
   LoadingOutlined,
-  InfoCircleOutlined,
-  BugOutlined,
-  ApiOutlined,
 } from '@ant-design/icons';
-import type { ToolCallLog, PipelineAgent, AgentName } from '../../mocks/data/agentWorkbench';
+import type { ToolCallLog, PipelineAgent } from '../../mocks/data/agentWorkbench';
 import { mockToolCallLogs, mockPipelineAgents } from '../../mocks/data/agentWorkbench';
-import { STATUS_COLORS, STATUS_LABELS } from '../../theme/colors';
 
-const { Text, Title, Paragraph } = Typography;
+const { Text, Title } = Typography;
+const { TextArea } = Input;
 
 // ============================================================
-// Agent 工作台 — 主页面
-//
-// 三面板布局：
-//   左侧：管道可视化（三个 Agent 状态 + 进度）
-//   右侧：思考日志（流式工具调用输出）
-//   底部：结果面板（可折叠的归因报告 + 策略建议）
+// 对话消息类型
+// ============================================================
+
+interface ChatMessage {
+  id: string;
+  role: 'agent' | 'user' | 'system';
+  content: string;
+  time: string;
+  type?: 'text' | 'alert_card' | 'result_card';
+  alertInfo?: { level: string; metric: string; dim: string; loss: number };
+  resultSummary?: { lockedDim: string; funnelIssue: string; rootCause: string; confidence: number; suggestion: string };
+  isStreaming?: boolean;
+}
+
+// 预设的快捷提问
+const SUGGESTED_QUESTIONS = [
+  '为什么今天 UV 打开率减少了 12.8%？',
+  '帮我分析最近一条严重告警',
+  '广东省小米用户的到达率为什么下降了？',
+];
+
+// 工具日志摘要（默认折叠 — 就是 Claude Code 的 thinking）
+const THINK_SUMMARY = {
+  monitor: { tools: 4, time: '3.2s' },
+  attribution: { tools: 6, time: '48.5s' },
+  strategy: { tools: 4, time: '6.2s' },
+};
+
+// ============================================================
+// Agent 工作台 — 对话式
 // ============================================================
 
 export default function AgentWorkbench() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const alertId = searchParams.get('alertId') || 'ALT-001';
+  const alertId = searchParams.get('alertId');
 
-  // 控制日志的逐条展示（模拟流式输出）
-  const [visibleLogs, setVisibleLogs] = useState<ToolCallLog[]>([]);
-  const [isStreaming, setIsStreaming] = useState(true);
+  // 对话消息
+  const [messages, setMessages] = useState<ChatMessage[]>(() => {
+    const initial: ChatMessage[] = [];
+    if (alertId) {
+      initial.push({
+        id: 'sys-1', role: 'system', time: new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }),
+        content: '监控 Agent 检测到异常告警，已自动启动分析管道',
+      });
+      initial.push({
+        id: 'agent-0', role: 'agent', time: new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }),
+        content: '我发现了一条**严重告警**，需要我帮你分析吗？',
+        type: 'alert_card',
+        alertInfo: { level: 'S05', metric: '本地实时 Push 到达率', dim: 'Android · 小米 · 广东省', loss: 2300 },
+      });
+    }
+    return initial;
+  });
+
+  // 输入
+  const [input, setInput] = useState('');
+  const [analyzing, setAnalyzing] = useState(false);
   const [pipeline, setPipeline] = useState<PipelineAgent[]>(() =>
-    mockPipelineAgents.map((a) => ({ ...a, status: 'idle' as const, progress: 0, doneCount: 0 }))
+    alertId
+      ? mockPipelineAgents.map((a) => ({ ...a, status: 'done' as const, progress: 100, doneCount: a.toolCount }))
+      : mockPipelineAgents.map((a) => ({ ...a, status: 'idle' as const, progress: 0, doneCount: 0 }))
   );
-  const [activeTab, setActiveTab] = useState<string>('log');
-  const logContainerRef = useRef<HTMLDivElement>(null);
 
-  // 流式播放动画：每 600-1200ms 展示一条新的工具调用日志
-  const streamLogs = useCallback(() => {
-    let idx = 0;
-    setIsStreaming(true);
+  // 思考面板
+  const [thinkExpanded, setThinkExpanded] = useState(false);
+  const [visibleLogs, setVisibleLogs] = useState<ToolCallLog[]>(() => (alertId ? mockToolCallLogs : []));
 
-    const tick = () => {
-      if (idx >= mockToolCallLogs.length) {
-        setIsStreaming(false);
-        setPipeline(mockPipelineAgents);
+  const chatEndRef = useRef<HTMLDivElement>(null);
+
+  // 自动滚到底部
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
+
+  // 模拟分析流程
+  const runAnalysis = (question: string) => {
+    // 添加用户消息
+    const userMsg: ChatMessage = {
+      id: 'user-' + Date.now(), role: 'user', time: new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }),
+      content: question,
+    };
+    setMessages((prev) => [...prev, userMsg]);
+    setInput('');
+    setAnalyzing(true);
+
+    // 重置并开始流式日志
+    setVisibleLogs([]);
+    setPipeline(mockPipelineAgents.map((a) => ({ ...a, status: 'idle' as const, progress: 0, doneCount: 0 })));
+
+    // 逐条播放工具日志
+    let logIdx = 0;
+    const tickLog = () => {
+      if (logIdx >= mockToolCallLogs.length) {
+        // 全部完成
+        setPipeline(mockPipelineAgents.map((a) => ({ ...a, status: 'done' as const, progress: 100, doneCount: a.toolCount })));
+        // 添加结果消息
+        setTimeout(() => {
+          setAnalyzing(false);
+          const resultMsg: ChatMessage = {
+            id: 'agent-result-' + Date.now(), role: 'agent', time: new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }),
+            content: '分析完成。根因锁定为**小米厂商通道广东地区出现短暂推送异常**（置信度 65%）。以下是我的分析摘要：',
+            type: 'result_card',
+            resultSummary: {
+              lockedDim: '本地实时 × Android × 小米 × 广东省',
+              funnelIssue: '到达率 ↓37%（非内容问题）',
+              rootCause: '小米通道广东地区短暂异常',
+              confidence: 65,
+              suggestion: '联系小米技术支持排查，必要时切换备用通道；增发广东本地 Push 补偿首启缺口',
+            },
+          };
+          setMessages((prev) => [...prev, resultMsg]);
+        }, 500);
         return;
       }
 
-      const log = mockToolCallLogs[idx];
+      const log = mockToolCallLogs[logIdx];
+      setVisibleLogs((prev) => [...prev, log]);
 
-      // 标记当前正在执行的日志
-      const logWithStatus = idx === mockToolCallLogs.length - 1
-        ? log
-        : { ...log, status: 'success' as const };
-
-      setVisibleLogs((prev) => [...prev, logWithStatus]);
-
-      // 更新管道状态
+      // 更新管道
       setPipeline((prev) =>
         prev.map((a) => {
           if (a.key === log.agent) {
-            const doneCount = mockToolCallLogs.filter((l) => l.agent === a.key && l.seq <= log.seq && l.status === 'success').length;
-            return {
-              ...a,
-              status: 'running' as const,
-              progress: Math.round((doneCount / (a.toolCount || 4)) * 100),
-              currentTool: log.toolLabel,
-              doneCount,
-            };
+            const doneCount = mockToolCallLogs.filter((l) => l.agent === a.key && l.seq <= log.seq).length;
+            return { ...a, status: 'running' as const, progress: Math.round((doneCount / a.toolCount) * 100), currentTool: log.toolLabel, doneCount };
           }
-          if (a.key === 'attribution' && log.agent === 'strategy') {
-            return { ...a, status: 'done' as const, progress: 100 };
-          }
-          if (a.key === 'strategy' && log.agent === 'attribution') {
-            return { ...a, status: 'waiting' as const, currentTool: '等待归因完成' };
-          }
+          if (a.key === 'attribution' && log.agent === 'strategy') return { ...a, status: 'done' as const, progress: 100, doneCount: a.toolCount };
+          if (a.key === 'strategy' && (log.agent === 'monitor' || log.agent === 'attribution')) return { ...a, status: 'waiting' as const, currentTool: '等待上游完成' };
           return a;
         })
       );
 
-      idx++;
-      const delay = log.isKey ? 1000 : 500 + Math.random() * 400;
-      setTimeout(tick, delay);
+      logIdx++;
+      setTimeout(tickLog, log.isKey ? 900 : 300 + Math.random() * 300);
     };
 
-    // 初始延迟
-    setTimeout(tick, 600);
-  }, []);
+    // 添加"分析中..."消息
+    const thinkingMsg: ChatMessage = {
+      id: 'agent-thinking-' + Date.now(), role: 'agent', time: new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }),
+      content: '收到，正在启动分析管道...',
+      isStreaming: true,
+    };
+    setMessages((prev) => [...prev, thinkingMsg]);
 
-  // 启动流式播放
-  useEffect(() => {
-    streamLogs();
-  }, [streamLogs]);
+    setTimeout(() => {
+      // 移除 thinking 消息
+      setMessages((prev) => prev.filter((m) => m.id !== thinkingMsg.id));
+      tickLog();
+    }, 800);
+  };
 
-  // 自动滚动到底部
-  useEffect(() => {
-    if (logContainerRef.current) {
-      logContainerRef.current.scrollTop = logContainerRef.current.scrollHeight;
-    }
-  }, [visibleLogs]);
+  // 快捷提问
+  const handleQuickQuestion = (q: string) => {
+    runAnalysis(q);
+  };
+
+  // 发送消息
+  const handleSend = () => {
+    if (!input.trim() || analyzing) return;
+    runAnalysis(input.trim());
+  };
+
+  const pipelineDone = pipeline.every((a) => a.status === 'done');
 
   return (
-    <div style={{ height: 'calc(100vh - 56px - 48px)', display: 'flex', flexDirection: 'column', gap: 12 }}>
-      {/* ── 顶部标题栏 ── */}
-      <Row justify="space-between" align="middle">
-        <Col>
-          <Space>
-            <Button type="text" icon={<ArrowLeftOutlined />} onClick={() => navigate('/dashboard')}>返回看板</Button>
-            <Divider type="vertical" />
-            <RobotOutlined style={{ fontSize: 18, color: '#165DFF' }} />
-            <Title level={4} style={{ margin: 0 }}>Agent 工作台</Title>
-            {isStreaming ? (
-              <Tag icon={<SyncOutlined spin />} color="processing">分析进行中</Tag>
-            ) : (
-              <Tag icon={<CheckCircleOutlined />} color="success">分析完成</Tag>
-            )}
-            <Text type="secondary" style={{ fontSize: 12 }}>
-              告警 {alertId}
+    <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 56px - 48px)' }}>
+      {/* ── 顶部栏 ── */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+        <Space>
+          <Button type="text" icon={<ArrowLeftOutlined />} onClick={() => navigate('/dashboard')}>返回看板</Button>
+          <RobotOutlined style={{ color: '#165DFF', fontSize: 18 }} />
+          <Title level={4} style={{ margin: 0 }}>Agent 工作台</Title>
+          {analyzing && <Tag icon={<SyncOutlined spin />} color="processing">分析中</Tag>}
+          {pipelineDone && messages.length > 0 && <Tag icon={<CheckCircleOutlined />} color="success">就绪</Tag>}
+        </Space>
+        <Space>
+          <Button size="small" icon={<CodeOutlined />} onClick={() => setThinkExpanded(!thinkExpanded)} type={thinkExpanded ? 'primary' : 'default'}>
+            {thinkExpanded ? '隐藏思考' : '思考过程'}
+          </Button>
+        </Space>
+      </div>
+
+      {/* ── 管道缩略条 ── */}
+      {(analyzing || pipelineDone) && (
+        <div
+          style={{
+            padding: '8px 16px', borderRadius: 8, marginBottom: 12,
+            background: analyzing ? '#FFF7E6' : '#F6FFED',
+            border: `1px solid ${analyzing ? '#FFD591' : '#B7EB8F'}`,
+            display: 'flex', alignItems: 'center', gap: 16,
+          }}
+        >
+          {pipeline.map((a, i) => {
+            const cfg = { idle: '⏳', running: '🔄', waiting: '⏸️', done: '✅', error: '❌' };
+            const color = a.status === 'running' ? '#165DFF' : a.status === 'done' ? '#00B42A' : '#86909C';
+            return (
+              <div key={a.key} style={{ display: 'flex', alignItems: 'center', gap: 6, flex: 1 }}>
+                <span>{a.icon}</span>
+                <Text strong style={{ fontSize: 12, color }}>{a.label}</Text>
+                <Text style={{ fontSize: 11, color }}>{cfg[a.status]}</Text>
+                {a.status === 'running' && <Progress percent={a.progress} size="small" style={{ flex: 1, minWidth: 60, margin: 0 }} showInfo={false} />}
+                {i < pipeline.length - 1 && <Text type="secondary" style={{ fontSize: 18 }}>→</Text>}
+              </div>
+            );
+          })}
+          {pipelineDone && <Text type="secondary" style={{ fontSize: 11, marginLeft: 'auto', flexShrink: 0 }}>耗时 57.9s</Text>}
+        </div>
+      )}
+
+      {/* ── 对话区 ── */}
+      <div style={{ flex: 1, overflow: 'auto', padding: '0 4px', minHeight: 0 }}>
+        {messages.length === 0 && (
+          <div style={{ textAlign: 'center', padding: '60px 20px' }}>
+            <RobotOutlined style={{ fontSize: 48, color: '#C9CDD4', marginBottom: 16 }} />
+            <Title level={4} type="secondary">Push Agent 分析工作台</Title>
+            <Text type="secondary">
+              输入分析问题，如「为什么今天 UV 打开率下降了？」
             </Text>
+          </div>
+        )}
+
+        {messages.map((msg) => (
+          <ChatBubble key={msg.id} msg={msg} navigate={navigate} />
+        ))}
+        <div ref={chatEndRef} />
+      </div>
+
+      {/* ── 快捷提问 ── */}
+      {!analyzing && messages.length === 0 && (
+        <div style={{ marginBottom: 12 }}>
+          <Text type="secondary" style={{ fontSize: 11, marginBottom: 6, display: 'block' }}>💡 快捷提问：</Text>
+          <Space size={8} wrap>
+            {SUGGESTED_QUESTIONS.map((q) => (
+              <Tag
+                key={q}
+                style={{ cursor: 'pointer', padding: '4px 10px', fontSize: 12 }}
+                color="blue"
+                onClick={() => handleQuickQuestion(q)}
+              >
+                {q}
+              </Tag>
+            ))}
           </Space>
-        </Col>
-        <Col>
-          <Space>
-            <Segmented
-              size="small"
-              value={activeTab}
-              onChange={(v) => setActiveTab(v as string)}
-              options={[
-                { label: '思考日志', value: 'log', icon: <CodeOutlined /> },
-                { label: '归因报告', value: 'report', icon: <SearchOutlined /> },
-                { label: '策略建议', value: 'strategy', icon: <ThunderboltOutlined /> },
-              ]}
-            />
-            <Button icon={<ReloadOutlined />} onClick={() => { setVisibleLogs([]); setPipeline(mockPipelineAgents.map((a) => ({ ...a, status: 'idle' as const, progress: 0, doneCount: 0 }))); streamLogs(); }} size="small">
-              重播
+        </div>
+      )}
+
+      {analyzing && (
+        <div style={{ marginBottom: 12, textAlign: 'center' }}>
+          <Text type="secondary" style={{ fontSize: 12 }}>
+            <LoadingOutlined /> Agent 正在分析...
+          </Text>
+        </div>
+      )}
+
+      {/* ── 思考面板（可折叠） ── */}
+      {visibleLogs.length > 0 && (
+        <Collapse
+          activeKey={thinkExpanded ? ['think'] : []}
+          onChange={(keys) => setThinkExpanded(keys.includes('think'))}
+          style={{ marginBottom: 12, background: '#FAFBFC' }}
+          size="small"
+          items={[{
+            key: 'think',
+            label: (
+              <Space size={4}>
+                <CodeOutlined style={{ fontSize: 12, color: '#86909C' }} />
+                <Text style={{ fontSize: 12, color: '#86909C' }}>
+                  Agent 思考过程
+                  {analyzing && <SyncOutlined spin style={{ marginLeft: 6, color: '#165DFF' }} />}
+                </Text>
+                <Text style={{ fontSize: 11, color: '#C9CDD4' }}>
+                  （{visibleLogs.length}/{mockToolCallLogs.length} 步 · {
+                    THINK_SUMMARY.monitor.tools + THINK_SUMMARY.attribution.tools + THINK_SUMMARY.strategy.tools
+                  } 个工具）
+                </Text>
+              </Space>
+            ),
+            children: <ThinkLogCompact logs={visibleLogs} isStreaming={analyzing} />,
+          }]}
+        />
+      )}
+
+      {/* ── 输入栏 ── */}
+      <div style={{ display: 'flex', gap: 8, padding: '8px 0 0', borderTop: '1px solid #E5E6EB' }}>
+        <Input
+          placeholder={analyzing ? 'Agent 分析中，请稍候...' : '输入你的分析问题，如"为什么今天UV打开率减少了12.8%？"...'}
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          onPressEnter={handleSend}
+          disabled={analyzing}
+          style={{ flex: 1 }}
+          prefix={<QuestionCircleOutlined style={{ color: '#C9CDD4' }} />}
+          suffix={
+            <Button type="primary" size="small" icon={<SendOutlined />} onClick={handleSend} disabled={!input.trim() || analyzing}>
+              发送
             </Button>
-          </Space>
-        </Col>
-      </Row>
-
-      {/* ── 主内容区 ── */}
-      <div style={{ flex: 1, display: 'flex', gap: 12, minHeight: 0 }}>
-        {/* 左侧面板：管道 + 上下文 */}
-        <div style={{ width: 280, flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 12 }}>
-          <PipelinePanel pipeline={pipeline} isStreaming={isStreaming} />
-
-          <Card size="small" bordered={false} title="📋 异常上下文">
-            <Descriptions size="small" column={1} labelStyle={{ fontSize: 11, color: '#86909C' }} contentStyle={{ fontSize: 12 }}>
-              <Descriptions.Item label="指标">本地实时 Push 到达率</Descriptions.Item>
-              <Descriptions.Item label="当前值">
-                <Text style={{ color: '#F53F3F', fontWeight: 600 }}>22.0%</Text>
-              </Descriptions.Item>
-              <Descriptions.Item label="基线值">35.0%</Descriptions.Item>
-              <Descriptions.Item label="偏离度">
-                <Text style={{ color: '#F53F3F' }}>-2.8σ</Text>
-              </Descriptions.Item>
-              <Descriptions.Item label="维度">
-                <Space size={2} wrap>
-                  <Tag style={{ fontSize: 10 }}>本地实时</Tag>
-                  <Tag color="blue" style={{ fontSize: 10 }}>小米</Tag>
-                  <Tag color="purple" style={{ fontSize: 10 }}>广东</Tag>
-                </Space>
-              </Descriptions.Item>
-              <Descriptions.Item label="预估损失">
-                <Text style={{ color: '#F53F3F' }}>~2,300 首启</Text>
-              </Descriptions.Item>
-            </Descriptions>
-          </Card>
-
-          {/* 快捷操作 */}
-          <Card size="small" bordered={false}>
-            <Space direction="vertical" style={{ width: '100%' }}>
-              <Button
-                type="primary"
-                block
-                icon={<SearchOutlined />}
-                onClick={() => navigate(`/attribution/ATTR-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-001`)}
-                size="small"
-              >
-                查看完整归因报告
-              </Button>
-              <Button
-                block
-                icon={<ThunderboltOutlined />}
-                onClick={() => navigate(`/strategy/SUG-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-001`)}
-                size="small"
-              >
-                查看策略建议
-              </Button>
-            </Space>
-          </Card>
-        </div>
-
-        {/* 右侧：日志 / 结果面板 */}
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
-          {activeTab === 'log' && (
-            <ThinkLogPanel logs={visibleLogs} isStreaming={isStreaming} logContainerRef={logContainerRef} />
-          )}
-          {activeTab === 'report' && <ReportResultPanel />}
-          {activeTab === 'strategy' && <StrategyResultPanel />}
-        </div>
+          }
+        />
       </div>
     </div>
   );
 }
 
 // ============================================================
-// 管道面板（左侧）
+// 对话气泡
 // ============================================================
 
-function PipelinePanel({ pipeline, isStreaming }: { pipeline: PipelineAgent[]; isStreaming: boolean }) {
-  return (
-    <Card
-      size="small"
-      bordered={false}
-      title={<Space><PlayCircleOutlined style={{ color: '#165DFF' }} />Agent 管道</Space>}
-      bodyStyle={{ padding: '12px 16px' }}
-    >
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-        {pipeline.map((agent, idx) => {
-          const statusConfig: Record<string, { color: string; icon: React.ReactNode; label: string }> = {
-            idle: { color: '#C9CDD4', icon: <ClockCircleOutlined />, label: '等待中' },
-            running: { color: '#165DFF', icon: <SyncOutlined spin />, label: '运行中' },
-            waiting: { color: '#FF7D00', icon: <ClockCircleOutlined />, label: '等待上游' },
-            done: { color: '#00B42A', icon: <CheckCircleOutlined />, label: '已完成' },
-            error: { color: '#F53F3F', icon: <ExclamationCircleOutlined />, label: '异常' },
-          };
-          const cfg = statusConfig[agent.status] || statusConfig.idle;
-          const isActive = agent.status === 'running';
+function ChatBubble({ msg, navigate }: { msg: ChatMessage; navigate: ReturnType<typeof useNavigate> }) {
+  const isAgent = msg.role === 'agent';
+  const isSystem = msg.role === 'system';
 
-          return (
-            <div key={agent.key}>
-              {/* Agent 卡片 */}
-              <div
-                style={{
-                  padding: '12px 14px',
-                  borderRadius: 8,
-                  background: isActive ? '#E8F2FF' : agent.status === 'done' ? '#F6FFED' : '#FAFAFA',
-                  border: `1.5px solid ${isActive ? '#165DFF' : agent.status === 'done' ? '#B7EB8F' : '#E5E6EB'}`,
-                  transition: 'all 0.3s',
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-                  <Space size={6}>
-                    <Text style={{ fontSize: 16 }}>{agent.icon}</Text>
-                    <Text strong style={{ fontSize: 13 }}>{agent.label}</Text>
-                  </Space>
-                  <Tag color={cfg.color} style={{ fontSize: 10, margin: 0 }}>
-                    <Space size={4}>
-                      {cfg.icon}
-                      {cfg.label}
-                    </Space>
-                  </Tag>
-                </div>
-
-                {agent.status === 'running' && (
-                  <>
-                    <Progress
-                      percent={agent.progress}
-                      strokeColor="#165DFF"
-                      size="small"
-                      showInfo={false}
-                      style={{ marginBottom: 4 }}
-                    />
-                    <Text type="secondary" style={{ fontSize: 10 }}>
-                      🛠 {agent.currentTool}
-                    </Text>
-                  </>
-                )}
-
-                {agent.status === 'done' && (
-                  <Text type="secondary" style={{ fontSize: 10 }}>
-                    ✅ {agent.doneCount}/{agent.toolCount} 个工具调用完成
-                  </Text>
-                )}
-
-                {agent.status === 'waiting' && (
-                  <Text type="secondary" style={{ fontSize: 10 }}>
-                    ⏳ {agent.currentTool}
-                  </Text>
-                )}
-              </div>
-
-              {/* Agent 之间的连接箭头 */}
-              {idx < pipeline.length - 1 && (
-                <div style={{ textAlign: 'center', padding: '4px 0' }}>
-                  <Text type="secondary" style={{ fontSize: 18 }}>↓</Text>
-                </div>
-              )}
-            </div>
-          );
-        })}
+  if (isSystem) {
+    return (
+      <div style={{ textAlign: 'center', margin: '12px 0' }}>
+        <Tag color="blue" style={{ fontSize: 11 }}>{msg.content}</Tag>
       </div>
-    </Card>
-  );
-}
-
-// ============================================================
-// 思考日志面板（右侧）
-// ============================================================
-
-function ThinkLogPanel({
-  logs, isStreaming, logContainerRef,
-}: {
-  logs: ToolCallLog[];
-  isStreaming: boolean;
-  logContainerRef: React.RefObject<HTMLDivElement | null>;
-}) {
-  const [expandedId, setExpandedId] = useState<string | null>(null);
-
-  const agentIcons: Record<AgentName, string> = {
-    monitor: '🔍',
-    attribution: '🧠',
-    strategy: '⚡',
-  };
-
-  const agentColors: Record<AgentName, string> = {
-    monitor: '#165DFF',
-    attribution: '#FF7D00',
-    strategy: '#722ED1',
-  };
+    );
+  }
 
   return (
-    <Card
-      bordered={false}
-      title={
-        <Space>
-          <CodeOutlined />
-          <span>Agent 思考日志</span>
-          {isStreaming && <Tag icon={<SyncOutlined spin />} color="processing" style={{ fontSize: 10 }}>实时输出中</Tag>}
-          <Text type="secondary" style={{ fontSize: 11, fontWeight: 'normal' }}>
-            {logs.length} / {mockToolCallLogs.length} 条
-          </Text>
-        </Space>
-      }
-      bodyStyle={{ padding: 0, height: 'calc(100% - 46px)' }}
-      style={{ flex: 1, display: 'flex', flexDirection: 'column' }}
+    <div
+      style={{
+        display: 'flex', gap: 10, marginBottom: 16,
+        flexDirection: isAgent ? 'row' : 'row-reverse',
+      }}
     >
+      {/* 头像 */}
       <div
-        ref={logContainerRef}
         style={{
-          flex: 1, overflow: 'auto', padding: '12px 16px',
-          fontFamily: '"SF Mono", "Menlo", "Monaco", "Courier New", monospace',
-          fontSize: 12, lineHeight: '20px', background: '#1E1E2E', color: '#CDD6F4',
-          borderRadius: '0 0 8px 8px',
+          width: 34, height: 34, borderRadius: '50%',
+          background: isAgent ? '#E8F2FF' : '#F0F5FF',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          flexShrink: 0,
         }}
       >
-        {/* 终端头部 */}
-        <div style={{ color: '#A6ADC8', marginBottom: 12, fontSize: 11 }}>
-          <div>══════════════════════════════════════════════</div>
-          <div>  Push Agent System · 多 Agent 协作分析终端</div>
-          <div>  {new Date().toLocaleString('zh-CN')}</div>
-          <div>══════════════════════════════════════════════</div>
+        {isAgent ? <RobotOutlined style={{ color: '#165DFF', fontSize: 16 }} /> : <UserOutlined style={{ color: '#4E5969', fontSize: 16 }} />}
+      </div>
+
+      {/* 气泡内容 */}
+      <div style={{ maxWidth: '75%' }}>
+        <div style={{ marginBottom: 2 }}>
+          <Text strong style={{ fontSize: 12 }}>{isAgent ? 'Agent' : '我'}</Text>
+          <Text type="secondary" style={{ fontSize: 11, marginLeft: 8 }}>{msg.time}</Text>
+          {msg.isStreaming && <LoadingOutlined style={{ marginLeft: 8, color: '#165DFF' }} />}
         </div>
 
-        {logs.length === 0 && (
-          <div style={{ color: '#6C7086' }}>
-            <SyncOutlined spin /> 等待 Agent 启动...
-          </div>
+        {/* 告警卡片 */}
+        {msg.type === 'alert_card' && msg.alertInfo && (
+          <Card
+            size="small"
+            style={{
+              borderLeft: '3px solid #F53F3F', borderRadius: 8, marginTop: 6,
+              background: '#FFF7F5',
+            }}
+          >
+            <Space direction="vertical" size={4}>
+              <Space>
+                <Tag color="error">严重告警 S05</Tag>
+                <Text strong style={{ fontSize: 13 }}>{msg.alertInfo.metric}</Text>
+              </Space>
+              <Text style={{ fontSize: 12, color: '#4E5969' }}>
+                影响：{msg.alertInfo.dim} · 预计损失 ~{msg.alertInfo.loss.toLocaleString()} 首启
+              </Text>
+              <Space size={8}>
+                <Button type="primary" size="small" icon={<SearchOutlined />} onClick={() => navigate(`/anomaly/ALT-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-001`)}>
+                  查看异常详情
+                </Button>
+                <Button size="small" onClick={() => navigate('/workbench')}>
+                  分析此异常
+                </Button>
+              </Space>
+            </Space>
+          </Card>
         )}
 
-        {logs.map((log) => {
-          const isExpanded = expandedId === log.id;
-          const color = agentColors[log.agent];
+        {/* 分析结果卡片 */}
+        {msg.type === 'result_card' && msg.resultSummary && (
+          <Card
+            size="small"
+            style={{ borderLeft: '3px solid #165DFF', borderRadius: 8, marginTop: 6 }}
+          >
+            <Space direction="vertical" size={8} style={{ width: '100%' }}>
+              {/* 管道完成 */}
+              <Space>
+                <Tag color="success" icon={<CheckCircleOutlined />}>分析完成</Tag>
+                <Text type="secondary" style={{ fontSize: 11 }}>总耗时 57.9s</Text>
+              </Space>
 
-          return (
-            <div
-              key={log.id}
-              style={{
-                marginBottom: isExpanded ? 16 : 8,
-                padding: isExpanded ? '8px 12px' : '4px 0',
-                background: isExpanded ? 'rgba(255,255,255,0.05)' : 'transparent',
-                borderRadius: 6,
-                borderLeft: log.isKey ? `2px solid ${color}` : '2px solid transparent',
-                cursor: 'pointer',
-                transition: 'all 0.2s',
-              }}
-              onClick={() => setExpandedId(isExpanded ? null : log.id)}
-            >
-              {/* 一行摘要 */}
-              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
-                <span style={{ color: '#6C7086', flexShrink: 0, width: 60, textAlign: 'right' }}>
-                  {log.timeDisplay}
-                </span>
-                <span style={{ color, flexShrink: 0 }}>{agentIcons[log.agent]}</span>
-                <span style={{ color: '#89B4FA' }}>{log.agentLabel}.{log.toolName}()</span>
-                {log.status === 'running' && <LoadingOutlined style={{ color }} spin />}
-                {log.status === 'success' && <CheckCircleOutlined style={{ color: '#A6E3A1' }} />}
-                {log.status === 'error' && <ExclamationCircleOutlined style={{ color: '#F38BA8' }} />}
-                {log.status === 'success' && (
-                  <span style={{ color: '#6C7086', marginLeft: 'auto', flexShrink: 0 }}>{log.durationMs}ms</span>
-                )}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px 16px', fontSize: 12 }}>
+                <div><Text type="secondary">🎯 锁定维度:</Text> <Text strong>{msg.resultSummary.lockedDim}</Text></div>
+                <div><Text type="secondary">🔗 故障环节:</Text> <Tag color="error">{msg.resultSummary.funnelIssue}</Tag></div>
+                <div style={{ gridColumn: '1 / -1' }}>
+                  <Text type="secondary">🧠 根因:</Text> <Text>{msg.resultSummary.rootCause}</Text>
+                  <Progress percent={msg.resultSummary.confidence} strokeColor="#F7BA1E" size="small" style={{ width: 120, display: 'inline-block', marginLeft: 8 }} />
+                  <Text style={{ fontSize: 11, color: '#F7BA1E' }}> {msg.resultSummary.confidence}%</Text>
+                </div>
+                <div style={{ gridColumn: '1 / -1' }}>
+                  <Text type="secondary">💡 建议:</Text> <Text>{msg.resultSummary.suggestion}</Text>
+                </div>
               </div>
 
-              {/* 描述 */}
-              <div style={{ marginLeft: 68, color: '#BAC2DE', fontSize: 11, marginTop: 2 }}>
-                {log.description}
-              </div>
-
-              {/* 展开后的输入/输出详情 */}
-              {isExpanded && (
-                <div style={{ marginLeft: 68, marginTop: 8, fontSize: 11 }}>
-                  <Collapse
-                    ghost
-                    size="small"
-                    items={[
-                      {
-                        key: 'input',
-                        label: <Text style={{ fontSize: 11, color: '#89B4FA' }}>📥 Input</Text>,
-                        children: (
-                          <pre style={{ color: '#A6ADC8', fontSize: 10, margin: 0, whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>
-                            {JSON.stringify(log.input, null, 2)}
-                          </pre>
-                        ),
-                      },
-                      log.output && {
-                        key: 'output',
-                        label: (
-                          <Text style={{ fontSize: 11, color: log.isKey ? '#F9E2AF' : '#A6E3A1' }}>
-                            📤 Output {log.isKey && '⭐ 关键结果'}
-                          </Text>
-                        ),
-                        children: (
-                          <pre style={{ color: '#A6ADC8', fontSize: 10, margin: 0, whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>
-                            {JSON.stringify(log.output, null, 2)}
-                          </pre>
-                        ),
-                      },
-                    ].filter(Boolean)}
-                  />
-                </div>
-              )}
-
-              {/* 关键结果的快速摘要（不展开时也显示） */}
-              {!isExpanded && log.isKey && log.output && (
-                <div style={{ marginLeft: 68, color: '#F9E2AF', fontSize: 10, marginTop: 2, opacity: 0.85 }}>
-                  → {JSON.stringify(log.output).slice(0, 120)}...
-                </div>
-              )}
-            </div>
-          );
-        })}
-
-        {/* 光标闪烁（流式输出中） */}
-        {isStreaming && (
-          <div style={{ display: 'flex', gap: 4, alignItems: 'center', color: '#89B4FA' }}>
-            <span style={{ animation: 'blink 1s step-end infinite' }}>▊</span>
-            <span style={{ fontSize: 10, color: '#6C7086' }}>Agent 正在思考...</span>
-          </div>
+              <Space size={8}>
+                <Button type="primary" size="small" icon={<SearchOutlined />}
+                  onClick={() => navigate(`/attribution/ATTR-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-001`)}>
+                  查看完整归因报告
+                </Button>
+                <Button size="small" icon={<ThunderboltOutlined />}
+                  onClick={() => navigate(`/strategy/SUG-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-001`)}>
+                  查看策略建议
+                </Button>
+                <Button size="small" icon={<BulbOutlined />}
+                  onClick={() => navigate('/workbench')}>
+                  继续提问
+                </Button>
+              </Space>
+            </Space>
+          </Card>
         )}
 
-        {!isStreaming && logs.length > 0 && (
-          <div style={{ color: '#A6E3A1', marginTop: 8 }}>
-            <div>══════════════════════════════════════════════</div>
-            <div>  ✅ 全部分析完成 · 耗时 {(mockToolCallLogs.reduce((s, l) => s + l.durationMs, 0) / 1000).toFixed(1)}s</div>
-            <div>  📊 监控: 4 工具 | 🧠 归因: 6 工具 | ⚡ 策略: 4 工具</div>
-            <div>══════════════════════════════════════════════</div>
+        {/* 普通文本 */}
+        {msg.type !== 'alert_card' && msg.type !== 'result_card' && (
+          <div
+            style={{
+              padding: '10px 14px', borderRadius: 8, marginTop: 4,
+              background: isAgent ? '#F7F8FA' : '#E8F2FF',
+              fontSize: 13, lineHeight: '22px', color: '#1D2129',
+            }}
+          >
+            {/* 简单的 markdown 加粗支持 */}
+            {msg.content.split('**').map((part, i) =>
+              i % 2 === 1 ? <strong key={i}>{part}</strong> : part
+            )}
           </div>
         )}
       </div>
-    </Card>
+    </div>
   );
 }
 
 // ============================================================
-// 结果面板 — 归因报告（Tab 切换时显示）
+// 紧凑思考日志（折叠面板内）
 // ============================================================
 
-function ReportResultPanel() {
-  const navigate = useNavigate();
-  return (
-    <Card bordered={false} title={<Space><SearchOutlined />归因分析结果</Space>}
-      extra={<Button type="link" onClick={() => navigate(`/attribution/ATTR-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-001`)}>查看完整报告 →</Button>}
-    >
-      <Descriptions bordered size="small" column={2}>
-        <Descriptions.Item label="锁定维度">本地实时 × Android × 小米 × 广东省</Descriptions.Item>
-        <Descriptions.Item label="故障环节">
-          <Tag color="error">到达率 ↓37%</Tag>
-        </Descriptions.Item>
-        <Descriptions.Item label="根因 Top-1">小米厂商通道广东地区出现短暂推送异常</Descriptions.Item>
-        <Descriptions.Item label="置信度">
-          <Progress percent={65} strokeColor="#F7BA1E" size="small" style={{ width: 120 }} />
-        </Descriptions.Item>
-      </Descriptions>
-    </Card>
-  );
-}
+function ThinkLogCompact({ logs, isStreaming }: { logs: ToolCallLog[]; isStreaming: boolean }) {
+  const agentColors: Record<string, string> = { monitor: '#165DFF', attribution: '#FF7D00', strategy: '#722ED1' };
+  const agentIcons: Record<string, string> = { monitor: '🔍', attribution: '🧠', strategy: '⚡' };
 
-function StrategyResultPanel() {
-  const navigate = useNavigate();
   return (
-    <Card bordered={false} title={<Space><ThunderboltOutlined />策略建议</Space>}
-      extra={<Button type="link" onClick={() => navigate(`/strategy/SUG-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-001`)}>查看完整策略 →</Button>}
-    >
-      <Descriptions bordered size="small" column={2}>
-        <Descriptions.Item label="建议">联系小米技术支持排查广东地区通道异常，必要时切换备用通道</Descriptions.Item>
-        <Descriptions.Item label="效果预估">+1,200 首启 UV (+10.2%)</Descriptions.Item>
-        <Descriptions.Item label="负责编辑">张三（广东省早班编辑）</Descriptions.Item>
-        <Descriptions.Item label="跟踪计划">D+1 执行检查 · D+3 效果检查 · D+7 闭环验证</Descriptions.Item>
-      </Descriptions>
-    </Card>
+    <div style={{ maxHeight: 240, overflow: 'auto', fontSize: 11, fontFamily: '"SF Mono", "Menlo", monospace', color: '#4E5969' }}>
+      {logs.map((log) => (
+        <div
+          key={log.id}
+          style={{
+            padding: '3px 0',
+            borderLeft: log.isKey ? `2px solid ${agentColors[log.agent]}` : '2px solid transparent',
+            paddingLeft: log.isKey ? 8 : 2,
+            marginBottom: log.isKey ? 4 : 1,
+            opacity: log.isKey ? 1 : 0.75,
+          }}
+        >
+          <span style={{ color: '#C9CDD4', marginRight: 8 }}>{log.timeDisplay}</span>
+          <span style={{ marginRight: 4 }}>{agentIcons[log.agent]}</span>
+          <span style={{ color: agentColors[log.agent], fontWeight: log.isKey ? 600 : 400 }}>
+            {log.toolName}()
+          </span>
+          <span style={{ color: '#86909C' }}> → {log.description}</span>
+          {log.isKey && log.output && (
+            <span style={{ color: '#00B42A', marginLeft: 6 }}>
+              ✓ {JSON.stringify(log.output).slice(0, 60)}...
+            </span>
+          )}
+          <span style={{ color: '#C9CDD4', marginLeft: 6 }}>{log.durationMs}ms</span>
+        </div>
+      ))}
+      {isStreaming && (
+        <div style={{ color: '#165DFF' }}>
+          <LoadingOutlined /> Agent 思考中...
+        </div>
+      )}
+    </div>
   );
 }
