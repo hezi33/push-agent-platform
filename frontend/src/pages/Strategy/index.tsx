@@ -47,7 +47,9 @@ export default function Strategy() {
           <Button type="text" icon={<ArrowLeftOutlined />} onClick={() => navigate('/dashboard')}>返回看板</Button>
         )}
         <Text type="secondary">/</Text>
-        <Text strong>策略建议</Text>
+        <Button type="link" style={{ padding: 0, fontSize: 14, fontWeight: 600, height: 'auto' }} onClick={() => navigate('/strategy')}>
+          策略建议
+        </Button>
         <Text type="secondary">/</Text>
         <Text>{data.suggestionId}</Text>
       </Space>
