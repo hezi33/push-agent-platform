@@ -13,6 +13,7 @@ import {
   UserOutlined,
   ReloadOutlined,
   RobotOutlined,
+  CodeOutlined,
 } from '@ant-design/icons';
 import { useAppStore } from '../../stores/app';
 import { useRelativeTime, randomPastTime } from '../../hooks/useRelativeTime';
@@ -22,6 +23,7 @@ const { Text } = Typography;
 
 const menuItems = [
   { key: '/dashboard',    icon: <DashboardOutlined />,    label: '数据看板' },
+  { key: '/workbench',    icon: <CodeOutlined />,          label: 'Agent 工作台' },
   { key: '/anomaly',      icon: <AlertOutlined />,        label: '异常详情' },
   { key: '/attribution',  icon: <SearchOutlined />,       label: '归因分析' },
   { key: '/strategy',     icon: <ThunderboltOutlined />,  label: '策略建议' },

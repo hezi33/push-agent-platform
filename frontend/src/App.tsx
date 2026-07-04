@@ -11,6 +11,7 @@ import AnomalyDetail from './pages/AnomalyDetail';
 import Attribution from './pages/Attribution';
 import Strategy from './pages/Strategy';
 import History from './pages/History';
+import AgentWorkbench from './pages/AgentWorkbench';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -38,6 +39,7 @@ export default function App() {
                 <Route path="/strategy" element={<Strategy />} />
                 <Route path="/strategy/:suggestionId" element={<Strategy />} />
                 <Route path="/history" element={<History />} />
+                <Route path="/workbench" element={<AgentWorkbench />} />
               </Route>
             </Routes>
           </BrowserRouter>

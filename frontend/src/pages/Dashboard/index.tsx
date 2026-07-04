@@ -82,11 +82,11 @@ export default function Dashboard() {
               card={card}
               onClick={() => {
                 if (card.anomaly) {
-                  // 点击异常卡片跳转异常详情
+                  // 点击异常卡片 → 打开 Agent 工作台
                   const alert = data.alertList.find(
                     (a) => a.metricName === card.metricKey && !a.isRead
                   );
-                  if (alert) navigate(`/anomaly/${alert.alertId}`);
+                  if (alert) navigate(`/workbench?alertId=${alert.alertId}`);
                 }
               }}
             />
@@ -136,7 +136,7 @@ export default function Dashboard() {
           size="middle"
           pagination={{ pageSize: 10, showSizeChanger: false }}
           onRow={(record) => ({
-            onClick: () => navigate(`/anomaly/${record.alertId}`),
+            onClick: () => navigate(`/workbench?alertId=${record.alertId}`),
             style: {
               cursor: 'pointer',
               background: record.isRead ? undefined : '#FFF7F5',
