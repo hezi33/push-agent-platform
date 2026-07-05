@@ -63,7 +63,8 @@ export default function MetricDetailDrawer({ open, card, onClose }: MetricDetail
       title={<Space><Text strong style={{ fontSize: 16 }}>{card.title} 详细分析</Text>{card.anomaly && <Tag color="error">异常</Tag>}</Space>}
       open={open} onClose={onClose} width={780}
       extra={<Button icon={<ExportOutlined />} size="small" onClick={() => message.info('导出 Excel 功能待后端接入')}>导出 Excel</Button>}
-      styles={{ body: { padding: '16px 24px' } }}
+      bodyStyle={{ padding: '16px 24px' }}
+      destroyOnClose
     >
       <Row gutter={16} style={{ marginBottom: 20 }}>
         <Col span={6}><Statistic title="当前值" value={card.currentValue} precision={prec} suffix={suffix} valueStyle={{ color: card.anomaly ? '#F53F3F' : '#1D2129', fontSize: 22 }} /></Col>
