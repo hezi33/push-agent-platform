@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import {
-  Row, Col, Card, Statistic, Table, Tag, Space, Typography, Spin, Tooltip,
+  Row, Col, Card, Statistic, Table, Tag, Space, Typography, Spin, Tooltip, Segmented,
 } from 'antd';
 import {
   ArrowUpOutlined, ArrowDownOutlined, ArrowRightOutlined,
@@ -14,6 +14,7 @@ import TrendLineChart from '../../components/charts/TrendLineChart';
 import FunnelSankey from '../../components/charts/FunnelSankey';
 import AgentStatusBar, { AIDetectedBadge, AgentThinkingBadge } from '../../components/common/AgentStatusBar';
 import MetricDetailDrawer from '../../components/common/MetricDetailDrawer';
+import { useWorkbenchStore } from '../../stores/workbench';
 import { mockDashboardData } from '../../mocks/data/dashboard';
 import { randomPastTime } from '../../hooks/useRelativeTime';
 import type { AlertItem, KPICardData } from '../../types';
@@ -33,6 +34,8 @@ export default function Dashboard() {
 
   // KPI 详情 Drawer
   const [drawerCard, setDrawerCard] = useState<KPICardData | null>(null);
+  // 趋势图时间范围
+  const [trendDays, setTrendDays] = useState<string>('7');
 
   // 动态生成"上次巡检时间"——每次渲染都不一样，且在 30s~5min 前随机
   const lastScanTime = useMemo(() => randomPastTime(30, 300), []);
@@ -85,7 +88,14 @@ export default function Dashboard() {
       {/* ── 图表区 ── */}
       <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
         <Col xs={24} lg={14}>
-          <Card title="核心指标趋势（近 7 天）" bordered={false}>
+          <Card
+            title="核心指标趋势"
+            extra={
+              <Segmented size="small" value={trendDays} onChange={(v) => setTrendDays(v as string)}
+                options={[{ value: '7', label: '7天' }, { value: '14', label: '14天' }, { value: '30', label: '30天' }]} />
+            }
+            bordered={false}
+          >
             <TrendLineChart
               dates={data.trendData.dates}
               series={data.trendData.series}
@@ -127,11 +137,16 @@ export default function Dashboard() {
           size="middle"
           pagination={{ pageSize: 10, showSizeChanger: false }}
           onRow={(record) => ({
-            onClick: () => navigate(`/workbench?alertId=${record.alertId}`),
-            style: {
-              cursor: 'pointer',
-              background: record.isRead ? undefined : '#FFF7F5',
+            onClick: () => {
+              useWorkbenchStore.getState().setAlertContext({
+                level: record.level,
+                metric: record.metricLabel,
+                dim: [record.dimension.vendor, record.dimension.province, record.dimension.sendType].filter((d) => d !== 'all').join(' · ') || '全平台',
+                loss: record.estimatedLoss,
+              });
+              navigate(`/workbench?alertId=${record.alertId}`);
             },
+            style: { cursor: 'pointer', background: record.isRead ? undefined : '#FFF7F5' },
           })}
           columns={alertColumns}
         />

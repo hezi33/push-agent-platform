@@ -207,13 +207,15 @@ export default function AgentWorkbench() {
   const [messages, setMessages] = useState<ChatMessage[]>(() => {
     if (store.messages.length > 0) return store.messages;
     if (!incomingAlertId) return [];
+    // ✅ 从 Store 读取告警上下文（Dashboard 点击时写入）
+    const ctx = store.alertContext || { level: 'S04', metric: '未知指标', dim: '未知维度', loss: 0 };
     return [{
       id: 'sys-1', role: 'system', time: now(), content: '监控 Agent 检测到异常告警，已自动启动分析管道',
     }, {
       id: 'agent-0', role: 'agent', time: now(),
-      content: '我发现了一条**严重告警**，需要我帮你分析吗？',
+      content: `我发现了一条**${ctx.level === 'S05' ? '严重告警' : '告警'}**，需要我帮你分析吗？`,
       type: 'alert_card',
-      alertInfo: { level: 'S05', metric: '本地实时 Push 到达率', dim: 'Android · 小米 · 广东省', loss: 2300 },
+      alertInfo: { level: ctx.level, metric: ctx.metric, dim: ctx.dim, loss: ctx.loss },
     }];
   });
   const [input, setInput] = useState('');
