@@ -114,7 +114,7 @@ export default function MetricDetailDrawer({ open, card, onClose }: MetricDetail
       footer={null}
       destroyOnClose
     >
-      {/* 概览 — 筛选后数据联动 */}}
+      {/* 概览 — 筛选后数据联动 */}
       <Row gutter={16} style={{ marginBottom: 16 }}>
         <Col span={6}><Statistic title="当前值" value={displayValue} precision={prec} suffix={suffix} valueStyle={{ color: displayAnomaly ? '#F53F3F' : '#1D2129', fontSize: 22 }} /></Col>
         <Col span={6}><Statistic title="基线值" value={displayYesterday} precision={prec} suffix={suffix} /></Col>
