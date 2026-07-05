@@ -78,12 +78,14 @@ export default function MetricDetailDrawer({ open, card, onClose }: MetricDetail
   const color = getTrendColor(card.changePct, card.isPositiveGreen);
   const arrow = getTrendArrow(card.changePct);
 
-  // 维度数据（按筛选过滤）
+  // 维度数据（筛选后数据联动）
   const dimData = useMemo(() => {
-    const g = (offset: number) => +Number(card.currentValue * (1 + offset)).toFixed(isPct ? 2 : 0);
+    const g = (offset: number) => +Number(displayValue * (1 + offset)).toFixed(isPct ? 2 : 0);
+    // 厂商下钻：选某厂商→数据聚焦该厂商维度
     const vendors = ALL_VENDORS
       .filter((v) => vendorFilter === 'all' || v === vendorFilter)
       .map((n, i) => ({ name: n, current: g(-0.15 + i * 0.04), baseline: g(0.05 + i * 0.02) }));
+    // 省份下钻同理
     const provinces = ALL_PROVINCES
       .filter((p) => provinceFilter === 'all' || p === provinceFilter)
       .map((n, i) => ({ name: n, current: g(-0.18 + i * 0.012), baseline: g(0.05 + i * 0.008) }));
@@ -92,7 +94,7 @@ export default function MetricDetailDrawer({ open, card, onClose }: MetricDetail
       provinces,
       sendTypes: ALL_SEND_TYPES.map((n, i) => ({ name: n, current: g(-0.12 + i * 0.04), baseline: g(0.05 + i * 0.02) })),
     };
-  }, [card.currentValue, isPct, vendorFilter, provinceFilter]);
+  }, [displayValue, isPct, vendorFilter, provinceFilter]);
 
   const barOption = (data: { name: string; current: number; baseline: number }[]) => ({
     color: ['#165DFF', '#E5E6EB'],
