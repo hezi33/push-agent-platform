@@ -1,42 +1,44 @@
+import { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Row, Col, Card, Statistic, Table, Tag, Space, Typography, Spin, Tooltip,
 } from 'antd';
 import {
-  ArrowUpOutlined,
-  ArrowDownOutlined,
-  ArrowRightOutlined,
-  ExclamationCircleOutlined,
-  WarningOutlined,
-  InfoCircleOutlined,
+  ArrowUpOutlined, ArrowDownOutlined, ArrowRightOutlined,
+  ExclamationCircleOutlined, WarningOutlined, InfoCircleOutlined,
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import ReactECharts from 'echarts-for-react';
 import TrendLineChart from '../../components/charts/TrendLineChart';
 import FunnelSankey from '../../components/charts/FunnelSankey';
 import AgentStatusBar, { AIDetectedBadge, AgentThinkingBadge } from '../../components/common/AgentStatusBar';
+import DashboardFilter, { type FilterValues } from '../../components/common/DashboardFilter';
+import MetricDetailDrawer from '../../components/common/MetricDetailDrawer';
 import { mockDashboardData } from '../../mocks/data/dashboard';
 import { randomPastTime } from '../../hooks/useRelativeTime';
 import type { AlertItem, KPICardData } from '../../types';
 import {
-  ALERT_LEVEL_COLORS,
-  ALERT_LEVEL_LABELS,
-  STATUS_LABELS,
-  STATUS_COLORS,
-  getTrendColor,
-  getTrendArrow,
+  ALERT_LEVEL_COLORS, ALERT_LEVEL_LABELS, STATUS_LABELS, STATUS_COLORS,
+  getTrendColor, getTrendArrow,
 } from '../../theme/colors';
 
-const { Text, Title } = Typography;
+const { Text } = Typography;
 
 // ============================================================
-// Dashboard 数据看板首页
+// Dashboard 数据看板首页（丰富版）
 // ============================================================
 
 export default function Dashboard() {
   const navigate = useNavigate();
+
+  // 筛选状态
+  const [filters, setFilters] = useState<FilterValues>({
+    timeRange: '7d', vendor: 'all', province: 'all', sendType: 'all', autoRefresh: true,
+  });
+
+  // KPI 详情 Drawer
+  const [drawerCard, setDrawerCard] = useState<KPICardData | null>(null);
 
   // 动态生成"上次巡检时间"——每次渲染都不一样，且在 30s~5min 前随机
   const lastScanTime = useMemo(() => randomPastTime(30, 300), []);
@@ -67,6 +69,9 @@ export default function Dashboard() {
 
   return (
     <div>
+      {/* ── 筛选栏 ── */}
+      <DashboardFilter value={filters} onChange={setFilters} filteredCount={filters.vendor !== 'all' || filters.province !== 'all' ? 48 : 3650} />
+
       {/* ── 🤖 Agent 状态栏 ── */}
       <AgentStatusBar
         lastScanTime={lastScanTime}
@@ -80,15 +85,7 @@ export default function Dashboard() {
           <Col xs={24} sm={12} lg={8} xl={4} key={card.metricKey}>
             <KPICard
               card={card}
-              onClick={() => {
-                if (card.anomaly) {
-                  // 点击异常卡片 → 打开 Agent 工作台
-                  const alert = data.alertList.find(
-                    (a) => a.metricName === card.metricKey && !a.isRead
-                  );
-                  if (alert) navigate(`/workbench?alertId=${alert.alertId}`);
-                }
-              }}
+              onClick={() => setDrawerCard(card)}
             />
           </Col>
         ))}
@@ -117,6 +114,9 @@ export default function Dashboard() {
           </Card>
         </Col>
       </Row>
+
+      {/* ── KPI 详情侧拉 Drawer ── */}
+      <MetricDetailDrawer open={!!drawerCard} card={drawerCard} onClose={() => setDrawerCard(null)} />
 
       {/* ── 异常告警列表 ── */}
       <Card
