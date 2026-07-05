@@ -13,7 +13,6 @@ import ReactECharts from 'echarts-for-react';
 import TrendLineChart from '../../components/charts/TrendLineChart';
 import FunnelSankey from '../../components/charts/FunnelSankey';
 import AgentStatusBar, { AIDetectedBadge, AgentThinkingBadge } from '../../components/common/AgentStatusBar';
-import DashboardFilter, { type FilterValues } from '../../components/common/DashboardFilter';
 import MetricDetailDrawer from '../../components/common/MetricDetailDrawer';
 import { mockDashboardData } from '../../mocks/data/dashboard';
 import { randomPastTime } from '../../hooks/useRelativeTime';
@@ -31,11 +30,6 @@ const { Text } = Typography;
 
 export default function Dashboard() {
   const navigate = useNavigate();
-
-  // 筛选状态
-  const [filters, setFilters] = useState<FilterValues>({
-    timeRange: '7d', vendor: 'all', province: 'all', sendType: 'all', autoRefresh: true,
-  });
 
   // KPI 详情 Drawer
   const [drawerCard, setDrawerCard] = useState<KPICardData | null>(null);
@@ -69,9 +63,6 @@ export default function Dashboard() {
 
   return (
     <div>
-      {/* ── 筛选栏 ── */}
-      <DashboardFilter value={filters} onChange={setFilters} filteredCount={filters.vendor !== 'all' || filters.province !== 'all' ? 48 : 3650} />
-
       {/* ── 🤖 Agent 状态栏 ── */}
       <AgentStatusBar
         lastScanTime={lastScanTime}

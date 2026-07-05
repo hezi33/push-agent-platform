@@ -1,4 +1,5 @@
 import type { DashboardData, AlertItem, KPICardData } from '../../types';
+import { generateTrend, generateDates } from './trendGenerator';
 
 // ============================================================
 // Mock 数据 — 数据看板首页
@@ -65,72 +66,45 @@ function noisy(base: number, noisePct: number = 0.05): number {
 // KPI 数据卡片
 // ============================================================
 
+// 使用统一生成器——保证迷你图和 Drawer 趋势一致
+const TREND_7D = generateDates(7);
+
 export const mockKPICards: KPICardData[] = [
   {
-    metricKey: 'send_uv',
-    title: '发送量',
-    currentValue: 25800000,
-    yesterdayValue: 26540000,
-    changePct: -2.8,
-    isPositiveGreen: false,
-    anomaly: false,
-    format: 'integer',
-    trendData: DATES.slice(-7).map(() => noisy(26000000, 0.06)),
+    metricKey: 'send_uv', title: '发送量',
+    currentValue: 25800000, yesterdayValue: 26540000, changePct: -2.8,
+    isPositiveGreen: false, anomaly: false, format: 'integer',
+    trendData: generateTrend('send_uv', 26000000, 0.06, 7),
   },
   {
-    metricKey: 'show_uv',
-    title: '展示人数',
-    currentValue: 7520000,
-    yesterdayValue: 7660000,
-    changePct: -1.8,
-    isPositiveGreen: false,
-    anomaly: false,
-    format: 'integer',
-    trendData: DATES.slice(-7).map(() => noisy(7600000, 0.05)),
+    metricKey: 'show_uv', title: '展示人数',
+    currentValue: 7520000, yesterdayValue: 7660000, changePct: -1.8,
+    isPositiveGreen: false, anomaly: false, format: 'integer',
+    trendData: generateTrend('show_uv', 7600000, 0.05, 7),
   },
   {
-    metricKey: 'uv_open_rate',
-    title: 'UV 打开率',
-    currentValue: 3.40,
-    yesterdayValue: 3.90,
-    changePct: -12.8,
-    isPositiveGreen: true,
-    anomaly: true, // 🔴 注入异常 — 全量 UV 打开率下降
-    format: 'percentage',
-    trendData: [3.92, 3.88, 3.95, 3.91, 3.89, 3.90, 3.40],
+    metricKey: 'uv_open_rate', title: 'UV 打开率',
+    currentValue: 3.40, yesterdayValue: 3.90, changePct: -12.8,
+    isPositiveGreen: true, anomaly: true, format: 'percentage',
+    trendData: generateTrend('uv_open_rate', 3.90, 0.03, 7, 6, 3.40),
   },
   {
-    metricKey: 'pv_open_rate',
-    title: 'PV 打开率',
-    currentValue: 0.68,
-    yesterdayValue: 0.73,
-    changePct: -6.8,
-    isPositiveGreen: true,
-    anomaly: false,
-    format: 'percentage',
-    trendData: [0.73, 0.71, 0.74, 0.72, 0.73, 0.73, 0.68],
+    metricKey: 'pv_open_rate', title: 'PV 打开率',
+    currentValue: 0.68, yesterdayValue: 0.73, changePct: -6.8,
+    isPositiveGreen: true, anomaly: false, format: 'percentage',
+    trendData: generateTrend('pv_open_rate', 0.73, 0.04, 7, 6, 0.68),
   },
   {
-    metricKey: 'first_open_uv',
-    title: '首启用户数',
-    currentValue: 147000,
-    yesterdayValue: 157000,
-    changePct: -6.4,
-    isPositiveGreen: true,
-    anomaly: false,
-    format: 'wan',
-    trendData: DATES.slice(-7).map(() => noisy(155000, 0.08)),
+    metricKey: 'first_open_uv', title: '首启用户数',
+    currentValue: 147000, yesterdayValue: 157000, changePct: -6.4,
+    isPositiveGreen: true, anomaly: false, format: 'wan',
+    trendData: generateTrend('first_open_uv', 155000, 0.08, 7),
   },
   {
-    metricKey: 'avg_show',
-    title: '人均展示次数',
-    currentValue: 9.32,
-    yesterdayValue: 9.65,
-    changePct: -3.4,
-    isPositiveGreen: false,
-    anomaly: false,
-    format: 'integer',
-    trendData: [9.71, 9.58, 9.63, 9.67, 9.55, 9.65, 9.32],
+    metricKey: 'avg_show', title: '人均展示次数',
+    currentValue: 9.32, yesterdayValue: 9.65, changePct: -3.4,
+    isPositiveGreen: false, anomaly: false, format: 'integer',
+    trendData: generateTrend('avg_show', 9.55, 0.04, 7, 6, 9.32),
   },
 ];
 
