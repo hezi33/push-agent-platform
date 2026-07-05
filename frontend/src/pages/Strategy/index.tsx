@@ -14,12 +14,13 @@ import {
   SyncOutlined,
 } from '@ant-design/icons';
 import { getStrategyDetail, getStrategyList } from '../../mocks/data/strategy';
+import { getMetricContext } from '../../mocks/data/metricContext';
 import { STATUS_LABELS, STATUS_COLORS } from '../../theme/colors';
 
 const { Text, Title, Paragraph } = Typography;
 
 // ============================================================
-// 策略建议页
+// 策略建议页 — 根据 ?metric=xxx 动态切换内容
 // ============================================================
 
 export default function Strategy() {
@@ -27,12 +28,27 @@ export default function Strategy() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const fromWorkbench = searchParams.get('from') === 'workbench';
+  const metricKey = searchParams.get('metric');
+  const ctx = getMetricContext(metricKey);
 
   if (!suggestionId) {
     return <StrategyList onSelect={(id) => navigate(`/strategy/${id}`)} />;
   }
 
-  const data = getStrategyDetail(suggestionId);
+  // 优先使用 metricContext 的动态数据，否则 fallback 到 strategy.ts
+  const strategyData = getStrategyDetail(suggestionId);
+  const todayMark = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+
+  const data = {
+    ...strategyData,
+    problemDesc: metricKey ? ctx.strategyProblemDesc : strategyData.problemDesc,
+    suggestion: metricKey ? ctx.strategySuggestion : strategyData.suggestion,
+    reference: metricKey ? ctx.strategyReference : strategyData.reference,
+    editorName: metricKey ? ctx.strategyEditor : strategyData.editorName,
+    estimatedEffect: {
+      ...strategyData.estimatedEffect,
+    },
+  };
 
   return (
     <div>
@@ -220,7 +236,7 @@ export default function Strategy() {
               <Button onClick={() => message.success('已抄送组长')}>升级抄送组长</Button>
             </>
           )}
-          <Button onClick={() => navigate('/attribution/ATTR-' + fmtToday() + '-002')}>返回归因报告</Button>
+          <Button onClick={() => navigate('/attribution/ATTR-' + fmtToday() + '-' + (metricKey || 'uv_open_rate') + '?from=workbench&metric=' + (metricKey || 'uv_open_rate'))}>返回归因报告</Button>
         </Space>
       </Card>
     </div>

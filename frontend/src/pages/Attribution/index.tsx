@@ -16,13 +16,14 @@ import {
   QuestionCircleOutlined,
 } from '@ant-design/icons';
 import ReactECharts from 'echarts-for-react';
-import { getAttributionReport, getAttributionProgress, type AttributionReport, type FunnelStageAnalysis } from '../../mocks/data/attribution';
+import { getAttributionProgress, type AttributionReport } from '../../mocks/data/attribution';
+import { getMetricContext, type MetricContext } from '../../mocks/data/metricContext';
 import { STATUS_LABELS, STATUS_COLORS, getConfidenceColor } from '../../theme/colors';
 
 const { Text, Title, Paragraph } = Typography;
 
 // ============================================================
-// 归因分析页
+// 归因分析页 — 根据 ?metric=xxx 动态切换内容
 // ============================================================
 
 export default function Attribution() {
@@ -30,13 +31,14 @@ export default function Attribution() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const fromWorkbench = searchParams.get('from') === 'workbench';
+  const metricKey = searchParams.get('metric');
+  const ctx: MetricContext = getMetricContext(metricKey);
 
   // 如果有 reportId → 展示已完成报告；否则模拟进行中再切换
   const [simulating, setSimulating] = useState(!reportId);
   const progress = getAttributionProgress();
   const timerRef = useRef<ReturnType<typeof setTimeout>>();
 
-  // 模拟 3 秒后归因完成
   useEffect(() => {
     if (simulating) {
       timerRef.current = setTimeout(() => setSimulating(false), 3000);
@@ -48,8 +50,37 @@ export default function Attribution() {
     return <AttributionProgressView steps={progress.steps} currentStep={progress.currentStep} />;
   }
 
-  const data = getAttributionReport();
-  if (!data) return null;
+  // 将 MetricContext 转为页面需要的格式
+  const todayMark = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+  const data = {
+    reportId: `ATTR-${todayMark}-${ctx.key}`,
+    title: ctx.attributionTitle,
+    status: 'S08' as const,
+    totalDuration: '4 分 32 秒',
+    steps: [
+      { key: 'scope', label: '范围锁定', status: 'done' as const, duration: '1 分 12 秒' },
+      { key: 'funnel', label: '链路定位', status: 'done' as const, duration: '48 秒' },
+      { key: 'root_cause', label: '根因推断', status: 'done' as const, duration: '1 分 55 秒' },
+      { key: 'report', label: '报告生成', status: 'done' as const, duration: '37 秒' },
+    ],
+    contributionTree: {
+      name: `${ctx.title} ${ctx.changePct || '变动'}`,
+      value: 100, contributionPct: 100, isAbnormal: ctx.isAnomaly,
+      children: [
+        { name: ctx.lockedDim, value: ctx.isAnomaly ? 70 : 100, contributionPct: ctx.isAnomaly ? 70 : 100, isAbnormal: ctx.isAnomaly },
+      ],
+    },
+    funnelAnalysis: [
+      { stage: 'arrive', stageLabel: '到达率', currentRate: ctx.isAnomaly ? 67.5 : 68, baselineRate: 68, changePct: ctx.isAnomaly ? -0.7 : 0, isAbnormal: false, direction: '→' },
+      { stage: 'show', stageLabel: '展示率', currentRate: 43, baselineRate: 43.5, changePct: -1.1, isAbnormal: false, direction: '→' },
+      { stage: 'open', stageLabel: ctx.title, currentRate: 3.4, baselineRate: 3.9, changePct: -12.8, isAbnormal: ctx.isAnomaly, direction: ctx.isAnomaly ? '↓' : '→' },
+      { stage: 'first_open', stageLabel: '首启率', currentRate: 1.96, baselineRate: 2.22, changePct: -11.7, isAbnormal: ctx.isAnomaly, direction: ctx.isAnomaly ? '↓' : '→' },
+    ],
+    rootCauses: [
+      { rank: 1, hypothesis: ctx.rootCause, confidence: ctx.confidence, evidence: ctx.candidateCauses.map((c, i) => `${i + 1}. ${c}`) },
+    ],
+    topConfidence: ctx.confidence,
+  };
 
   return (
     <div>
