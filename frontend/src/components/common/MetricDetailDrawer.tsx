@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { Drawer, Tabs, Space, Typography, Statistic, Row, Col, Segmented, Button, Select, Tag, message } from 'antd';
+import { Modal, Tabs, Space, Typography, Statistic, Row, Col, Segmented, Button, Tag, message } from 'antd';
 import { ArrowUpOutlined, ArrowDownOutlined, ArrowRightOutlined, ExportOutlined } from '@ant-design/icons';
 import ReactECharts from 'echarts-for-react';
 import type { KPICardData } from '../../types';
@@ -59,11 +59,10 @@ export default function MetricDetailDrawer({ open, card, onClose }: MetricDetail
   });
 
   return (
-    <Drawer
+    <Modal
       title={<Space><Text strong style={{ fontSize: 16 }}>{card.title} 详细分析</Text>{card.anomaly && <Tag color="error">异常</Tag>}</Space>}
-      open={open} onClose={onClose} width={780}
-      extra={<Button icon={<ExportOutlined />} size="small" onClick={() => message.info('导出 Excel 功能待后端接入')}>导出 Excel</Button>}
-      bodyStyle={{ padding: '16px 24px' }}
+      open={open} onCancel={onClose} width={820}
+      footer={<Button icon={<ExportOutlined />} size="small" onClick={() => message.info('导出 Excel 功能待后端接入')}>导出 Excel</Button>}
       destroyOnClose
     >
       <Row gutter={16} style={{ marginBottom: 20 }}>
@@ -103,7 +102,7 @@ export default function MetricDetailDrawer({ open, card, onClose }: MetricDetail
           ]}
         />
       </div>
-    </Drawer>
+    </Modal>
   );
 }
 
