@@ -6,6 +6,7 @@ import dayjs from 'dayjs';
 import type { KPICardData } from '../../types';
 import { getTrendColor, getTrendArrow, CHART_COLORS } from '../../theme/colors';
 import { generateTrend, generateDates, ALL_PROVINCES, ALL_VENDORS, ALL_SEND_TYPES } from '../../mocks/data/trendGenerator';
+import { getFilteredValue } from '../../mocks/data/dimensionData';
 import { downloadCSV, exportTrendData, exportDimensionData } from '../../utils/exportCSV';
 
 const { Text } = Typography;
@@ -25,21 +26,31 @@ export default function MetricDetailDrawer({ open, card, onClose }: MetricDetail
   const [customDates, setCustomDates] = useState<[dayjs.Dayjs, dayjs.Dayjs] | null>(null);
   const [vendorFilter, setVendorFilter] = useState('all');
   const [provinceFilter, setProvinceFilter] = useState('all');
+  const [sendTypeFilter, setSendTypeFilter] = useState('all');
 
-  // 重置
+  const hasFilter = vendorFilter !== 'all' || provinceFilter !== 'all' || sendTypeFilter !== 'all';
+
+  // 切换指标时重置
   const prevKey = useRef(card?.metricKey);
   useEffect(() => {
     if (prevKey.current !== card.metricKey) {
-      setTimeRange('30'); setCustomDates(null); setVendorFilter('all'); setProvinceFilter('all');
+      setTimeRange('30'); setCustomDates(null); setVendorFilter('all'); setProvinceFilter('all'); setSendTypeFilter('all');
       prevKey.current = card.metricKey;
     }
   }, [card.metricKey]);
 
+  // ✅ 筛选后的数据
+  const filtered = getFilteredValue(card.metricKey, card, vendorFilter, provinceFilter, sendTypeFilter);
+  const displayValue = filtered.currentValue;
+  const displayYesterday = filtered.yesterdayValue;
+  const displayChangePct = filtered.changePct;
+
   const isPct = card.format === 'percentage';
   const suffix = isPct ? '%' : card.format === 'wan' ? ' 万' : '';
   const prec = isPct ? 2 : 0;
-  const baseVal = isPct ? (card.metricKey === 'uv_open_rate' ? 3.90 : card.metricKey === 'pv_open_rate' ? 0.73 : 3) : card.yesterdayValue;
+  const baseVal = isPct ? displayYesterday : displayYesterday;
   const noise = isPct ? 0.03 : 0.06;
+  const displayAnomaly = card.anomaly || Math.abs(displayChangePct) > 10;
 
   // 日期范围
   const isCustom = timeRange === 'custom';
@@ -60,8 +71,8 @@ export default function MetricDetailDrawer({ open, card, onClose }: MetricDetail
   }, [days, isCustom, customDates]);
 
   const trendData = useMemo(
-    () => generateTrend(card.metricKey, baseVal, noise, days, card.anomaly ? days - 1 : null, card.anomaly ? card.currentValue : undefined),
-    [card.metricKey, baseVal, noise, days, card.anomaly, card.currentValue],
+    () => generateTrend(card.metricKey, baseVal, noise, days, displayAnomaly ? days - 1 : null, displayAnomaly ? displayValue : undefined),
+    [card.metricKey, baseVal, noise, days, displayAnomaly, displayValue],
   );
 
   const color = getTrendColor(card.changePct, card.isPositiveGreen);
@@ -103,14 +114,20 @@ export default function MetricDetailDrawer({ open, card, onClose }: MetricDetail
       footer={null}
       destroyOnClose
     >
-      {/* 概览 */}
+      {/* 概览 — 筛选后数据联动 */}}
       <Row gutter={16} style={{ marginBottom: 16 }}>
-        <Col span={6}><Statistic title="当前值" value={card.currentValue} precision={prec} suffix={suffix} valueStyle={{ color: card.anomaly ? '#F53F3F' : '#1D2129', fontSize: 22 }} /></Col>
-        <Col span={6}><Statistic title="昨日值" value={card.yesterdayValue} precision={prec} suffix={suffix} /></Col>
-        <Col span={6}><Statistic title="变化" value={Math.abs(card.changePct)} precision={1} suffix="%"
-          prefix={arrow === '↑' ? <ArrowUpOutlined /> : arrow === '↓' ? <ArrowDownOutlined /> : <ArrowRightOutlined />}
-          valueStyle={{ color, fontSize: 20 }} /></Col>
-        <Col span={6}><Statistic title="基线均值" value={isPct ? baseVal : card.yesterdayValue} precision={prec} suffix={suffix} /></Col>
+        <Col span={6}><Statistic title="当前值" value={displayValue} precision={prec} suffix={suffix} valueStyle={{ color: displayAnomaly ? '#F53F3F' : '#1D2129', fontSize: 22 }} /></Col>
+        <Col span={6}><Statistic title="基线值" value={displayYesterday} precision={prec} suffix={suffix} /></Col>
+        <Col span={6}><Statistic title="变化" value={Math.abs(displayChangePct)} precision={1} suffix="%"
+          prefix={displayChangePct > 0 ? <ArrowUpOutlined /> : displayChangePct < 0 ? <ArrowDownOutlined /> : <ArrowRightOutlined />}
+          valueStyle={{ color: getTrendColor(displayChangePct, card.isPositiveGreen), fontSize: 20 }} /></Col>
+        <Col span={6}>
+          {hasFilter ? (
+            <Statistic title="筛选维度" value={`${vendorFilter !== 'all' ? vendorFilter + ' ' : ''}${provinceFilter !== 'all' ? provinceFilter + ' ' : ''}${sendTypeFilter !== 'all' ? sendTypeFilter : ''}`.trim() || '全部'} valueStyle={{ fontSize: 14 }} formatter={(v) => <Tag color="blue">{v}</Tag>} />
+          ) : (
+            <Statistic title="数据范围" value="全量" valueStyle={{ fontSize: 14 }} formatter={(v) => <Text type="secondary">{v}</Text>} />
+          )}
+        </Col>
       </Row>
 
       {/* 日期筛选 + 导出 */}
@@ -147,18 +164,27 @@ export default function MetricDetailDrawer({ open, card, onClose }: MetricDetail
         }} style={{ height: 300 }} />
       </div>
 
-      {/* 维度筛选 + 导出 */}
+      {/* 筛选条件 — 数据联动 */}
       <Row justify="space-between" align="middle" style={{ marginBottom: 12 }}>
         <Col>
-          <Text strong style={{ fontSize: 14 }}>📊 多维度对比</Text>
+          <Space size={8}>
+            <Text strong style={{ fontSize: 14 }}>📊 多维度对比</Text>
+            {hasFilter && (
+              <Button size="small" type="link" onClick={() => { setVendorFilter('all'); setProvinceFilter('all'); setSendTypeFilter('all'); }}>
+                清除筛选
+              </Button>
+            )}
+          </Space>
         </Col>
         <Col>
           <Space size={8} wrap>
-            <Select size="small" value={vendorFilter} onChange={setVendorFilter} style={{ width: 110 }}
-              options={[{ value: 'all', label: '全部厂商' }, ...ALL_VENDORS.map((v) => ({ value: v, label: v }))]} />
-            <Select size="small" value={provinceFilter} onChange={setProvinceFilter} style={{ width: 110 }}
-              options={[{ value: 'all', label: '全部省份' }, ...ALL_PROVINCES.map((p) => ({ value: p, label: p }))]}
+            <Select size="small" value={vendorFilter} onChange={setVendorFilter} style={{ width: 100 }}
+              options={[{ value: 'all', label: '厂商▾' }, ...ALL_VENDORS.map((v) => ({ value: v, label: v }))]} />
+            <Select size="small" value={provinceFilter} onChange={setProvinceFilter} style={{ width: 100 }}
+              options={[{ value: 'all', label: '省份▾' }, ...ALL_PROVINCES.map((p) => ({ value: p, label: p }))]}
               showSearch />
+            <Select size="small" value={sendTypeFilter} onChange={setSendTypeFilter} style={{ width: 120 }}
+              options={[{ value: 'all', label: '发送类型▾' }, ...ALL_SEND_TYPES.map((s) => ({ value: s, label: s }))]} />
           </Space>
         </Col>
       </Row>
