@@ -280,28 +280,37 @@ export default function AgentWorkbench() {
     setMessages((prev) => [...prev, userMsg]);
     setAnalyzing(true);
     setLiveLogs([]);
-    setPipeline(mockPipelineAgents.map((a) => ({ ...a, status: 'idle' as const, progress: 0, doneCount: 0 })));
+
+    // ✅ 非异常指标只跑监控 Agent（前4步），跳过归因和策略
+    const totalLogs = ctx.isAnomaly ? mockToolCallLogs : mockToolCallLogs.slice(0, 4);
+    const initPipeline = mockPipelineAgents.map((a) => {
+      if (!ctx.isAnomaly && a.key !== 'monitor') return { ...a, status: 'skipped' as PipelineAgent['status'], progress: 0, doneCount: 0, currentTool: '无需分析' };
+      return { ...a, status: 'idle' as const, progress: 0, doneCount: 0 };
+    });
+    setPipeline(initPipeline);
 
     setMessages((prev) => [...prev, {
       id: streamingId, role: 'agent', time: now(),
       content: '正在分析...', type: 'streaming_card',
-      thinkLogs: [], pipeline: mockPipelineAgents.map((a) => ({ ...a, status: 'idle' as const, progress: 0, doneCount: 0 })),
+      thinkLogs: [], pipeline: initPipeline,
     }]);
 
     const runLogs: ToolCallLog[] = [];
     let logIdx = 0;
     const tickLog = () => {
-      if (logIdx >= mockToolCallLogs.length) {
-        const finalPipeline = mockPipelineAgents.map((a) => ({ ...a, status: 'done' as const, progress: 100, doneCount: a.toolCount }));
+      if (logIdx >= totalLogs.length) {
+        const finalPipeline = mockPipelineAgents.map((a) => {
+          if (!ctx.isAnomaly && a.key !== 'monitor') return { ...a, status: 'skipped' as PipelineAgent['status'], progress: 0, doneCount: 0, currentTool: '无需分析' };
+          return { ...a, status: 'done' as const, progress: 100, doneCount: a.toolCount };
+        });
         setPipeline(finalPipeline);
         setTimeout(() => {
           setAnalyzing(false);
-          // ✅ 替换 streaming_card 为 result_card（思考折叠态）
           setMessages((prev) => prev.map((m) => m.id === streamingId ? {
             id: msgId, role: 'agent', time: now(),
             content: ctx.isAnomaly
               ? `分析完成。根因锁定为**${ctx.rootCause}**（置信度 ${ctx.confidence}%）。`
-              : `分析完成。**${ctx.metricName}**当前波动在正常范围内（置信度 ${ctx.confidence}%），无需特殊处理。`,
+              : `分析完成。**${ctx.metricName}**当前波动在正常范围内（置信度 ${ctx.confidence}%），无需归因和策略建议。`,
             type: 'result_card',
             resultSummary: { lockedDim: ctx.lockedDim, funnelIssue: ctx.funnelIssue, rootCause: ctx.rootCause, confidence: ctx.confidence, suggestion: ctx.suggestion, metricKey: ctx.metricKey, isAnomaly: ctx.isAnomaly },
             thinkLogs: [...runLogs],
@@ -309,11 +318,13 @@ export default function AgentWorkbench() {
         }, 400);
         return;
       }
-      const log = { ...mockToolCallLogs[logIdx] };
+      const log = { ...totalLogs[logIdx] };
       runLogs.push(log);
       setLiveLogs([...runLogs]);
 
       const curPipeline = mockPipelineAgents.map((a) => {
+        // 非异常指标只跑监控，归因和策略标记跳过
+        if (!ctx.isAnomaly && a.key !== 'monitor') return { ...a, status: 'skipped' as PipelineAgent['status'], progress: 0, doneCount: 0, currentTool: '无需分析' };
         if (a.key === log.agent) {
           const dc = runLogs.filter((l) => l.agent === a.key).length;
           return { ...a, status: 'running' as const, progress: Math.round((dc / a.toolCount) * 100), currentTool: log.toolLabel, doneCount: dc };
@@ -324,7 +335,6 @@ export default function AgentWorkbench() {
       });
       setPipeline(curPipeline);
 
-      // ✅ 实时更新 streaming_card 的日志和管道
       setMessages((prev) => prev.map((m) => m.id === streamingId ? { ...m, thinkLogs: [...runLogs], pipeline: curPipeline } : m));
 
       logIdx++;
@@ -355,7 +365,7 @@ export default function AgentWorkbench() {
       {(analyzing || pipelineDone) && (
         <div style={{ padding: '6px 16px', borderRadius: 8, marginBottom: 12, background: analyzing ? '#FFF7E6' : '#F6FFED', border: `1px solid ${analyzing ? '#FFD591' : '#B7EB8F'}`, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
           {pipeline.map((a, i) => {
-            const cfg: Record<string, { e: string; c: string }> = { idle: { e: '⏳', c: '#C9CDD4' }, running: { e: '🔄', c: '#165DFF' }, waiting: { e: '⏸️', c: '#FF7D00' }, done: { e: '✅', c: '#00B42A' }, error: { e: '❌', c: '#F53F3F' } };
+            const cfg: Record<string, { e: string; c: string }> = { idle: { e: '⏳', c: '#C9CDD4' }, running: { e: '🔄', c: '#165DFF' }, waiting: { e: '⏸️', c: '#FF7D00' }, done: { e: '✅', c: '#00B42A' }, error: { e: '❌', c: '#F53F3F' }, skipped: { e: '⏭️', c: '#C9CDD4' } };
             const c = cfg[a.status] || cfg.idle;
             return (
               <div key={a.key} style={{ display: 'flex', alignItems: 'center', gap: 4, flex: 1, minWidth: 0 }}>
@@ -366,7 +376,7 @@ export default function AgentWorkbench() {
               </div>
             );
           })}
-          {pipelineDone && <Text type="secondary" style={{ fontSize: 11, marginLeft: 'auto' }}>耗时 57.9s</Text>}
+          {pipelineDone && <Text type="secondary" style={{ fontSize: 11, marginLeft: 'auto' }}>耗时 {pipeline.some((a) => a.status === 'skipped') ? '3.2s' : '57.9s'}</Text>}
         </div>
       )}
 
@@ -534,7 +544,7 @@ function ChatBubble({ msg, navigate, onAnalyze, isAnalyzing }: {
               {msg.pipeline && (
                 <div style={{ display: 'flex', gap: 6, fontSize: 11, flexWrap: 'wrap' }}>
                   {msg.pipeline.map((a, i) => {
-                    const s: Record<string, string> = { idle: '⏳', running: '🔄', waiting: '⏸️', done: '✅' };
+                    const s: Record<string, string> = { idle: '⏳', running: '🔄', waiting: '⏸️', done: '✅', skipped: '⏭️' };
                     return (
                       <span key={a.key}>
                         {a.icon} {a.label} {s[a.status] || '⏳'}

@@ -48,7 +48,7 @@ export interface PipelineAgent {
   key: AgentName;
   label: string;
   icon: string;
-  status: 'idle' | 'running' | 'waiting' | 'done' | 'error';
+  status: 'idle' | 'running' | 'waiting' | 'done' | 'error' | 'skipped';
   progress: number; // 0-100
   currentTool: string;
   toolCount: number;
