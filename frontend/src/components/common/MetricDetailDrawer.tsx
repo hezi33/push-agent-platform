@@ -77,10 +77,8 @@ export default function MetricDetailDrawer({ open, card, onClose }: MetricDetail
       lineStyle: { width: 2 },
       areaStyle: { color: { type: 'linear', x: 0, y: 0, x2: 0, y2: 1, colorStops: [{ offset: 0, color: 'rgba(22,93,255,0.08)' }, { offset: 1, color: 'rgba(255,255,255,0)' }] } },
       markLine: days > 7 ? { silent: true, symbol: 'none', lineStyle: { type: 'dashed', color: '#86909C', width: 1 }, label: { fontSize: 10, color: '#86909C', formatter: '基线 {c}' }, data: [{ yAxis: baseValue, name: '基线' }] } : undefined,
+      markPoints: card.anomaly ? { data: [{ coord: [days - 1, card.currentValue], symbol: 'pin', symbolSize: 30, itemStyle: { color: '#F53F3F' }, label: { formatter: `${card.currentValue}${suffix}`, fontSize: 10, color: '#F53F3F' } }] } : undefined,
     }],
-    ...(card.anomaly ? {
-      markPoints: { data: [{ coord: [days - 1, card.currentValue], symbol: 'pin', symbolSize: 30, itemStyle: { color: '#F53F3F' }, label: { formatter: `${card.currentValue}${suffix}`, fontSize: 10, color: '#F53F3F' } }] },
-    } : {}),
   };
 
   // 维度柱状图
