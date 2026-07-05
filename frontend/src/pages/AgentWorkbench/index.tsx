@@ -18,13 +18,14 @@ const { Text, Title } = Typography;
 // ── 类型 ──
 interface ChatMessage {
   id: string; role: 'agent' | 'user' | 'system'; content: string; time: string;
-  type?: 'text' | 'alert_card' | 'result_card' | 'streaming_card';
-  pipeline?: PipelineAgent[];
+  type?: 'text' | 'alert_card' | 'result_card' | 'streaming_card' | 'correction_card';
   alertInfo?: { level: string; metric: string; dim: string; loss: number };
   resultSummary?: { lockedDim: string; funnelIssue: string; rootCause: string; confidence: number; suggestion: string };
-  /** 属于这条消息的思考日志 */
   thinkLogs?: ToolCallLog[];
+  pipeline?: PipelineAgent[];
   isStreaming?: boolean;
+  /** 纠错卡片上的快捷提问 */
+  correctionActions?: { label: string; question: string }[];
 }
 
 const SUGGESTED_QUESTIONS = [
@@ -33,25 +34,57 @@ const SUGGESTED_QUESTIONS = [
   '广东省小米用户的到达率为什么下降了？',
 ];
 
-// Push 业务相关关键词（用于判断问题是否相关）
+// Push 业务关键词
 const PUSH_KEYWORDS = ['推送', 'push', '打开率', '到达率', '首启', '展示', '发送', '告警', '异常', '指标', '分析', '归因', '策略', '厂商', '省份', '小米', '华为', 'oppo', 'vivo', '三星', 'uv', 'pv', '漏斗', '转化', '优化', '广东', '浙江', '江苏', '北京', '下降', '减少', '降低', '减少', '为什么', '怎么', '帮我', '实时', '量'];
+const UP_KEYWORDS = ['上升', '上涨', '增加', '提高', '提升', '增长', '高了', '变好', '改善'];
+const DOWN_KEYWORDS = ['下降', '下跌', '减少', '降低', '下滑', '低了', '变差', '恶化'];
 
-function isRelevant(q: string): boolean {
-  return PUSH_KEYWORDS.some((kw) => q.toLowerCase().includes(kw));
-}
+type QuestionResult =
+  | { type: 'irrelevant' }
+  | { type: 'correction'; metricName: string; actualDirection: string; actualChangePct: number; correctionQuestion: string }
+  | { type: 'analysis'; metricName: string; currentValue: number; baselineValue: number; changePct: number; sigma: number; lockedDim: string; funnelIssue: string; rootCause: string; confidence: number; suggestion: string };
 
-function parseQuestionContext(q: string) {
-  // 不相关问题返回 null（由调用方处理）
-  if (!isRelevant(q)) return null;
+function parseQuestion(q: string): QuestionResult {
+  if (!PUSH_KEYWORDS.some((kw) => q.toLowerCase().includes(kw))) return { type: 'irrelevant' };
 
   const l = q.toLowerCase();
-  if (l.includes('uv打开率') || l.includes('打开率') || l.includes('uv 打开')) {
-    return { metricName: 'UV 打开率', currentValue: 3.40, baselineValue: 3.90, changePct: -12.8, sigma: 2.4, lockedDim: '全量 × Android × 小米 × 广东省', funnelIssue: '打开率 ↓12.8%（内容质量问题）', rootCause: '广东省小米用户对近期全量 Push 内容兴趣度显著下降', confidence: 65, suggestion: '优化广东小米用户群的内容匹配算法；增发本地民生/天气类高打开率内容' };
+
+  // 判断用户说的方向 vs 实际的下降方向
+  const userSaysUp = UP_KEYWORDS.some((kw) => l.includes(kw));
+  const userSaysDown = DOWN_KEYWORDS.some((kw) => l.includes(kw));
+
+  // 确认指标
+  const isOpenRate = l.includes('uv打开率') || l.includes('打开率') || l.includes('uv 打开');
+  const isFirstOpen = l.includes('首启');
+  const isArriveRate = l.includes('到达率');
+
+  // 实际数据方向（都是下降的）
+  if (isOpenRate) {
+    if (userSaysUp) {
+      return { type: 'correction', metricName: 'UV 打开率', actualDirection: '下降了 12.8%', actualChangePct: -12.8, correctionQuestion: '帮我分析 UV 打开率为什么下降了 12.8%' };
+    }
+    return { type: 'analysis', metricName: 'UV 打开率', currentValue: 3.40, baselineValue: 3.90, changePct: -12.8, sigma: 2.4, lockedDim: '全量 × Android × 小米 × 广东省', funnelIssue: '打开率 ↓12.8%（内容质量问题）', rootCause: '广东省小米用户对近期全量 Push 内容兴趣度显著下降', confidence: 65, suggestion: '优化广东小米用户群的内容匹配算法；增发本地民生/天气类高打开率内容' };
   }
-  if (l.includes('首启')) {
-    return { metricName: '首启 UV', currentValue: 147000, baselineValue: 157000, changePct: -6.4, sigma: 1.9, lockedDim: '全量 × 华为 × 江苏省', funnelIssue: '首启率 ↓6.4%（SDK 问题）', rootCause: '华为推送 SDK 版本更新导致部分机型到达率下降', confidence: 78, suggestion: '联系华为回滚 SDK 版本；对受影响机型启用备用通道' };
+  if (isFirstOpen) {
+    if (userSaysUp) {
+      return { type: 'correction', metricName: '首启 UV', actualDirection: '下降了 6.4%', actualChangePct: -6.4, correctionQuestion: '帮我分析首启 UV 为什么下降了 6.4%' };
+    }
+    return { type: 'analysis', metricName: '首启 UV', currentValue: 147000, baselineValue: 157000, changePct: -6.4, sigma: 1.9, lockedDim: '全量 × 华为 × 江苏省', funnelIssue: '首启率 ↓6.4%（SDK 问题）', rootCause: '华为推送 SDK 版本更新导致部分机型到达率下降', confidence: 78, suggestion: '联系华为回滚 SDK 版本；对受影响机型启用备用通道' };
   }
-  return { metricName: '到达率', currentValue: 22.0, baselineValue: 35.0, changePct: -37.1, sigma: 2.8, lockedDim: '本地实时 × Android × 小米 × 广东省', funnelIssue: '到达率 ↓37%（厂商通道问题）', rootCause: '小米厂商通道广东地区出现短暂推送异常', confidence: 65, suggestion: '联系小米排查广东通道异常；增发广东本地 Push 补偿首启缺口' };
+  if (isArriveRate) {
+    if (userSaysUp) {
+      return { type: 'correction', metricName: '到达率', actualDirection: '下降了 37.1%', actualChangePct: -37.1, correctionQuestion: '帮我分析到达率为什么骤降了 37%' };
+    }
+    return { type: 'analysis', metricName: '到达率', currentValue: 22.0, baselineValue: 35.0, changePct: -37.1, sigma: 2.8, lockedDim: '本地实时 × Android × 小米 × 广东省', funnelIssue: '到达率 ↓37%（厂商通道问题）', rootCause: '小米厂商通道广东地区出现短暂推送异常', confidence: 65, suggestion: '联系小米排查广东通道异常；增发广东本地 Push 补偿首启缺口' };
+  }
+
+  // 用户提到了方向但没有明确指标 → 追问
+  if (userSaysUp || userSaysDown) {
+    return { type: 'irrelevant' }; // 会在下文处理为追问
+  }
+
+  // 通用分析请求 → 默认到达率
+  return { type: 'analysis', metricName: '到达率', currentValue: 22.0, baselineValue: 35.0, changePct: -37.1, sigma: 2.8, lockedDim: '本地实时 × Android × 小米 × 广东省', funnelIssue: '到达率 ↓37%（厂商通道问题）', rootCause: '小米厂商通道广东地区出现短暂推送异常', confidence: 65, suggestion: '联系小米排查广东通道异常；增发广东本地 Push 补偿首启缺口' };
 }
 
 // ============================================================
@@ -90,28 +123,44 @@ export default function AgentWorkbench() {
   useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages, liveLogs]);
 
   const runAnalysis = useCallback((question: string) => {
-    // 不相关问题直接拒绝
-    const ctx = parseQuestionContext(question);
-    if (!ctx) {
-      setMessages((prev) => [
-        ...prev,
-        { id: 'user-' + Date.now(), role: 'user', time: now(), content: question },
-        { id: 'agent-' + Date.now(), role: 'agent', time: now(), content: '抱歉，我是 Push 推送业务分析专用 Agent。我能帮你分析推送到达率、UV 打开率、首启 UV 等指标异常的原因。请尝试问我与 Push 数据相关的问题，例如「为什么今天 UV 打开率下降了？」。', type: 'text' },
-      ]);
-      setInput('');
+    const result = parseQuestion(question);
+    const userMsg: ChatMessage = { id: 'user-' + Date.now(), role: 'user', time: now(), content: question };
+    setInput('');
+
+    // 不相关 → 友好拒绝
+    if (result.type === 'irrelevant') {
+      setMessages((prev) => [...prev, userMsg, {
+        id: 'agent-' + Date.now(), role: 'agent', time: now(),
+        content: '抱歉，我是 Push 推送业务分析专用 Agent。我能帮你分析推送到达率、UV 打开率、首启 UV 等指标异常的原因。请尝试问我与 Push 数据相关的问题，例如：「UV 打开率为什么下降了？」「帮我分析最近一条告警」。',
+        type: 'text',
+      }]);
       return;
     }
 
+    // ✅ 方向说反了 → 纠错，让用户确认后再分析
+    if (result.type === 'correction') {
+      setMessages((prev) => [...prev, userMsg, {
+        id: 'agent-' + Date.now(), role: 'agent', time: now(),
+        content: `根据最新数据，**${result.metricName}** 实际上是 **${result.actualDirection}**，与你描述的方向相反。需要我帮你分析**下降**的原因吗？`,
+        type: 'correction_card',
+        correctionActions: [
+          { label: `✅ 分析${result.metricName}下降原因`, question: result.correctionQuestion },
+          { label: '🔍 先看看具体数据', question: `帮我看看${result.metricName}的详细数据` },
+        ],
+      }]);
+      return;
+    }
+
+    // ✅ 方向正确 → 启动分析管道
+    const ctx = result;
     const msgId = 'result-' + Date.now();
     const streamingId = 'streaming-' + Date.now();
 
-    setMessages((prev) => [...prev, { id: 'user-' + Date.now(), role: 'user', time: now(), content: question }]);
-    setInput('');
+    setMessages((prev) => [...prev, userMsg]);
     setAnalyzing(true);
     setLiveLogs([]);
     setPipeline(mockPipelineAgents.map((a) => ({ ...a, status: 'idle' as const, progress: 0, doneCount: 0 })));
 
-    // ✅ 插入 streaming_card：分析中实时展示思考过程（展开态）
     setMessages((prev) => [...prev, {
       id: streamingId, role: 'agent', time: now(),
       content: '正在分析...', type: 'streaming_card',
@@ -386,8 +435,27 @@ function ChatBubble({ msg, navigate, onAnalyze, isAnalyzing }: {
           </Card>
         )}
 
+        {/* 纠错卡片 — 用户说反了方向 */}
+        {msg.type === 'correction_card' && (
+          <Card size="small" style={{ borderLeft: '3px solid #F7BA1E', borderRadius: 8, marginTop: 4, background: '#FFFBE6' }}>
+            <Space direction="vertical" size={8} style={{ width: '100%' }}>
+              <Tag color="warning">⚠️ 数据纠错</Tag>
+              <Text style={{ fontSize: 13 }}>{msg.content}</Text>
+              {msg.correctionActions && (
+                <Space size={8} wrap>
+                  {msg.correctionActions.map((act, i) => (
+                    <Button key={i} size="small" type={i === 0 ? 'primary' : 'default'} onClick={() => onAnalyze(act.question)}>
+                      {act.label}
+                    </Button>
+                  ))}
+                </Space>
+              )}
+            </Space>
+          </Card>
+        )}
+
         {/* 普通文本 */}
-        {msg.type !== 'alert_card' && msg.type !== 'result_card' && msg.type !== 'streaming_card' && (
+        {msg.type !== 'alert_card' && msg.type !== 'result_card' && msg.type !== 'streaming_card' && msg.type !== 'correction_card' && (
           <div style={{ padding: '10px 14px', borderRadius: 8, marginTop: 4, fontSize: 13, lineHeight: '22px', color: '#1D2129', background: isAgent ? '#F7F8FA' : '#E8F2FF' }}>
             {msg.content.split('**').map((part, i) => i % 2 === 1 ? <strong key={i}>{part}</strong> : part)}
           </div>
