@@ -49,11 +49,28 @@ const METRIC_REGISTRY: MetricInfo[] = [
   { key: 'uv_open_rate', labels: ['uv打开率', 'uv 打开率', 'uv 打开', '打开率'] },
   { key: 'pv_open_rate', labels: ['pv打开率', 'pv 打开率', 'pv 打开'] },
   { key: 'arrive_rate', labels: ['到达率'] },
-  { key: 'first_open_uv', labels: ['首启uv', '首启 uv', '首启'] },
+  { key: 'first_open_uv', labels: ['首启uv', '首启 uv', '首启', '首启用户'] },
   { key: 'send_uv', labels: ['发送量', '发送uv', '发送 uv'] },
-  { key: 'show_uv', labels: ['展示人数', '展示uv', '展示 uv', '展示量'] },
+  { key: 'show_uv', labels: ['展示人数', '展示uv', '展示 uv', '展示量', '展示率'] },
   { key: 'avg_show', labels: ['人均展示', '人均展示次数', '展示次数'] },
 ];
+
+/** 告警指标名 → 分析问题（用于「分析此异常」按钮） */
+function alertMetricToQuestion(label: string): string {
+  const map: Record<string, string> = {
+    '到达率': '帮我分析到达率为什么下降了',
+    'UV 打开率': '帮我分析 UV 打开率为什么下降了',
+    'PV 打开率': '帮我分析 PV 打开率为什么下降了',
+    '首启 UV': '帮我分析首启 UV 为什么下降了',
+    '首启用户数': '帮我分析首启 UV 为什么下降了',
+    '发送量': '帮我分析发送量为什么下降了',
+    '展示人数': '帮我分析展示人数为什么下降了',
+    '展示量': '帮我分析展示人数为什么下降了',
+    '展示率': '帮我分析展示人数为什么下降了',
+    '人均展示次数': '帮我分析人均展示次数为什么下降了',
+  };
+  return map[label] || `帮我分析${label}为什么下降了`;
+}
 
 const UP_KEYWORDS = ['上升', '上涨', '增加', '提高', '提升', '增长', '高了', '变好', '改善', '升了'];
 const DOWN_KEYWORDS = ['下降', '下跌', '减少', '降低', '下滑', '低了', '变差', '恶化', '降了'];
@@ -465,7 +482,12 @@ function ChatBubble({ msg, navigate, onAnalyze, isAnalyzing }: {
               <Text style={{ fontSize: 12, color: '#4E5969' }}>影响：{msg.alertInfo.dim} · 预计损失 ~{msg.alertInfo.loss.toLocaleString()} 首启</Text>
               <Space size={8}>
                 <Button type="primary" size="small" icon={<SearchOutlined />} onClick={() => navigate(`/anomaly/ALT-${todayMark}-001?from=workbench`)}>查看异常详情</Button>
-                <Button size="small" type="primary" ghost onClick={() => onAnalyze('帮我分析这条告警：' + msg.alertInfo!.metric)}>分析此异常</Button>
+                <Button size="small" type="primary" ghost onClick={() => {
+                  // 将告警指标名映射为可识别的分析问题
+                  const label = msg.alertInfo!.metric;
+                  const q = alertMetricToQuestion(label);
+                  onAnalyze(q);
+                }}>分析此异常</Button>
               </Space>
             </Space>
           </Card>
