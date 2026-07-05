@@ -21,7 +21,7 @@ interface ChatMessage {
   id: string; role: 'agent' | 'user' | 'system'; content: string; time: string;
   type?: 'text' | 'alert_card' | 'result_card' | 'streaming_card' | 'correction_card' | 'clarify_card';
   alertInfo?: { level: string; metric: string; dim: string; loss: number };
-  resultSummary?: { lockedDim: string; funnelIssue: string; rootCause: string; confidence: number; suggestion: string };
+  resultSummary?: { lockedDim: string; funnelIssue: string; rootCause: string; confidence: number; suggestion: string; metricKey: string; isAnomaly: boolean };
   thinkLogs?: ToolCallLog[];
   pipeline?: PipelineAgent[];
   isStreaming?: boolean;
@@ -41,18 +41,18 @@ const SUGGESTED_QUESTIONS = [
 interface MetricInfo {
   key: string;          // 数据 key（对应 mockKPICard.metricKey）
   labels: string[];     // 用户可能的叫法
-  isRate: boolean;      // true=百分比，false=绝对值
+  isAnomaly: boolean;   // 是否有实际异常（正常波动=false）
   analysisTemplate: { lockedDim: string; funnelIssue: string; rootCause: string; confidence: number; suggestion: string };
 }
 
 const METRIC_REGISTRY: MetricInfo[] = [
-  { key: 'uv_open_rate', labels: ['uv打开率', 'uv 打开率', 'uv 打开', '打开率'], isRate: true, analysisTemplate: { lockedDim: '全量 × Android × 小米 × 广东省', funnelIssue: '打开率 ↓12.8%（内容质量问题）', rootCause: '广东省小米用户对近期全量 Push 内容兴趣度显著下降', confidence: 65, suggestion: '优化广东小米用户群的内容匹配算法；增发本地民生/天气类高打开率内容' } },
-  { key: 'pv_open_rate', labels: ['pv打开率', 'pv 打开率', 'pv 打开'], isRate: true, analysisTemplate: { lockedDim: '全量 × iOS × 广东省', funnelIssue: 'PV 打开率 ↓6.8%（重复推送疲劳）', rootCause: '部分用户被重复推送相同内容，导致 PV 打开率下降但 UV 打开率影响较小', confidence: 58, suggestion: '优化去重策略减少重复推送；增加内容多样性提高单用户多次打开意愿' } },
-  { key: 'arrive_rate', labels: ['到达率'], isRate: true, analysisTemplate: { lockedDim: '本地实时 × Android × 小米 × 广东省', funnelIssue: '到达率 ↓37%（厂商通道问题）', rootCause: '小米厂商通道广东地区出现短暂推送异常', confidence: 65, suggestion: '联系小米排查广东通道异常；增发广东本地 Push 补偿首启缺口' } },
-  { key: 'first_open_uv', labels: ['首启uv', '首启 uv', '首启'], isRate: false, analysisTemplate: { lockedDim: '全量 × 华为 × 江苏省', funnelIssue: '首启率 ↓6.4%（SDK 问题）', rootCause: '华为推送 SDK 版本更新导致部分机型到达率下降', confidence: 78, suggestion: '联系华为回滚 SDK 版本；对受影响机型启用备用通道' } },
-  { key: 'send_uv', labels: ['发送量', '发送uv', '发送 uv'], isRate: false, analysisTemplate: { lockedDim: '全量', funnelIssue: '发送量 ↓2.8%（正常波动）', rootCause: '发送量在正常波动范围内（< 1.5σ），无异常', confidence: 90, suggestion: '发送量正常，无需特殊处理。如需深入了解特定维度的发送变化，请指定厂商或省份。' } },
-  { key: 'show_uv', labels: ['展示人数', '展示uv', '展示 uv', '展示量'], isRate: false, analysisTemplate: { lockedDim: '全量', funnelIssue: '展示人数 ↓1.8%（正常波动）', rootCause: '展示量波动在正常范围内，与发送量降幅一致', confidence: 85, suggestion: '展示量正常。关注到达率变化对展示的影响。' } },
-  { key: 'avg_show', labels: ['人均展示', '人均展示次数', '展示次数'], isRate: false, analysisTemplate: { lockedDim: '个性化实时 × OPPO × Android', funnelIssue: '人均展示次数 ↓3.4%（厂商策略调整）', rootCause: 'OPPO 厂商可能调整了展示频次策略', confidence: 55, suggestion: '建议检查 OPPO 厂商展示策略配置，关注展示频次上限设置。置信度较低，建议人工确认。' } },
+  { key: 'uv_open_rate', labels: ['uv打开率', 'uv 打开率', 'uv 打开', '打开率'], isAnomaly: true, analysisTemplate: { lockedDim: '全量 × Android × 小米 × 广东省', funnelIssue: '打开率 ↓12.8%（内容质量问题）', rootCause: '广东省小米用户对近期全量 Push 内容兴趣度显著下降', confidence: 65, suggestion: '优化广东小米用户群的内容匹配算法；增发本地民生/天气类高打开率内容' } },
+  { key: 'pv_open_rate', labels: ['pv打开率', 'pv 打开率', 'pv 打开'], isAnomaly: false, analysisTemplate: { lockedDim: '全量 × iOS × 广东省', funnelIssue: 'PV 打开率 ↓6.8%（重复推送疲劳）', rootCause: '部分用户被重复推送相同内容，导致 PV 打开率下降但 UV 打开率影响较小', confidence: 58, suggestion: '优化去重策略减少重复推送；增加内容多样性提高单用户多次打开意愿' } },
+  { key: 'arrive_rate', labels: ['到达率'], isAnomaly: true, analysisTemplate: { lockedDim: '本地实时 × Android × 小米 × 广东省', funnelIssue: '到达率 ↓37%（厂商通道问题）', rootCause: '小米厂商通道广东地区出现短暂推送异常', confidence: 65, suggestion: '联系小米排查广东通道异常；增发广东本地 Push 补偿首启缺口' } },
+  { key: 'first_open_uv', labels: ['首启uv', '首启 uv', '首启'], isAnomaly: true, analysisTemplate: { lockedDim: '全量 × 华为 × 江苏省', funnelIssue: '首启率 ↓6.4%（SDK 问题）', rootCause: '华为推送 SDK 版本更新导致部分机型到达率下降', confidence: 78, suggestion: '联系华为回滚 SDK 版本；对受影响机型启用备用通道' } },
+  { key: 'send_uv', labels: ['发送量', '发送uv', '发送 uv'], isAnomaly: false, analysisTemplate: { lockedDim: '全量', funnelIssue: '发送量 ↓2.8%（正常波动）', rootCause: '发送量在正常波动范围内（< 1.5σ），无异常', confidence: 90, suggestion: '发送量正常，无需特殊处理。如需深入了解特定维度的发送变化，请指定厂商或省份。' } },
+  { key: 'show_uv', labels: ['展示人数', '展示uv', '展示 uv', '展示量'], isAnomaly: false, analysisTemplate: { lockedDim: '全量', funnelIssue: '展示人数 ↓1.8%（正常波动）', rootCause: '展示量波动在正常范围内，与发送量降幅一致', confidence: 85, suggestion: '展示量正常。关注到达率变化对展示的影响。' } },
+  { key: 'avg_show', labels: ['人均展示', '人均展示次数', '展示次数'], isAnomaly: true, analysisTemplate: { lockedDim: '个性化实时 × OPPO × Android', funnelIssue: '人均展示次数 ↓3.4%（厂商策略调整）', rootCause: 'OPPO 厂商可能调整了展示频次策略', confidence: 55, suggestion: '建议检查 OPPO 厂商展示策略配置，关注展示频次上限设置。置信度较低，建议人工确认。' } },
 ];
 
 const UP_KEYWORDS = ['上升', '上涨', '增加', '提高', '提升', '增长', '高了', '变好', '改善', '升了'];
@@ -63,7 +63,7 @@ type QuestionResult =
   | { type: 'irrelevant' }
   | { type: 'clarify'; content: string; options: { label: string; question: string }[] }
   | { type: 'correction'; metricName: string; actualDirection: string; correctionQuestion: string }
-  | { type: 'analysis'; metricName: string; currentValue: number; baselineValue: number; changePct: number; sigma: number; lockedDim: string; funnelIssue: string; rootCause: string; confidence: number; suggestion: string };
+  | { type: 'analysis'; metricKey: string; metricName: string; currentValue: number; baselineValue: number; changePct: number; sigma: number; lockedDim: string; funnelIssue: string; rootCause: string; confidence: number; suggestion: string; isAnomaly: boolean };
 
 /** 从 Mock 数据中查找指标的当前值和变化 */
 function findMetricData(key: string): { current: number; baseline: number; changePct: number; title: string } | null {
@@ -182,6 +182,7 @@ function parseQuestion(q: string): QuestionResult {
   const tpl = matchedMetric.analysisTemplate;
   return {
     type: 'analysis',
+    metricKey: matchedMetric.key,
     metricName: data.title,
     currentValue: data.current,
     baselineValue: data.baseline,
@@ -192,6 +193,7 @@ function parseQuestion(q: string): QuestionResult {
     rootCause: tpl.rootCause,
     confidence: tpl.confidence,
     suggestion: tpl.suggestion,
+    isAnomaly: matchedMetric.isAnomaly,
   };
 }
 
@@ -297,9 +299,11 @@ export default function AgentWorkbench() {
           // ✅ 替换 streaming_card 为 result_card（思考折叠态）
           setMessages((prev) => prev.map((m) => m.id === streamingId ? {
             id: msgId, role: 'agent', time: now(),
-            content: `分析完成。根因锁定为**${ctx.rootCause}**（置信度 ${ctx.confidence}%）。`,
+            content: ctx.isAnomaly
+              ? `分析完成。根因锁定为**${ctx.rootCause}**（置信度 ${ctx.confidence}%）。`
+              : `分析完成。**${ctx.metricName}**当前波动在正常范围内（置信度 ${ctx.confidence}%），无需特殊处理。`,
             type: 'result_card',
-            resultSummary: { lockedDim: ctx.lockedDim, funnelIssue: ctx.funnelIssue, rootCause: ctx.rootCause, confidence: ctx.confidence, suggestion: ctx.suggestion },
+            resultSummary: { lockedDim: ctx.lockedDim, funnelIssue: ctx.funnelIssue, rootCause: ctx.rootCause, confidence: ctx.confidence, suggestion: ctx.suggestion, metricKey: ctx.metricKey, isAnomaly: ctx.isAnomaly },
             thinkLogs: [...runLogs],
           } : m));
         }, 400);
@@ -495,10 +499,24 @@ function ChatBubble({ msg, navigate, onAnalyze, isAnalyzing }: {
                 />
               )}
 
-              <Space size={8} style={{ marginTop: 4 }}>
-                <Button type="primary" size="small" icon={<SearchOutlined />} onClick={() => navigate(`/attribution/ATTR-${todayMark}-002?from=workbench`)}>查看完整归因报告</Button>
-                <Button size="small" icon={<ThunderboltOutlined />} onClick={() => navigate(`/strategy/SUG-${todayMark}-001?from=workbench`)}>查看策略建议</Button>
-              </Space>
+              {/* 只有真正异常的指标才显示详情按钮 */}
+              {msg.resultSummary.isAnomaly && (
+                <Space size={8} style={{ marginTop: 4 }}>
+                  <Button type="primary" size="small" icon={<SearchOutlined />}
+                    onClick={() => navigate(`/attribution/ATTR-${todayMark}-002?from=workbench&metric=${msg.resultSummary?.metricKey || ''}`)}>
+                    查看完整归因报告
+                  </Button>
+                  <Button size="small" icon={<ThunderboltOutlined />}
+                    onClick={() => navigate(`/strategy/SUG-${todayMark}-001?from=workbench&metric=${msg.resultSummary?.metricKey || ''}`)}>
+                    查看策略建议
+                  </Button>
+                </Space>
+              )}
+              {!msg.resultSummary.isAnomaly && (
+                <Text type="secondary" style={{ fontSize: 11, display: 'block', marginTop: 4 }}>
+                  ✅ 该指标在正常波动范围内，无需归因和策略建议
+                </Text>
+              )}
             </Space>
           </Card>
         )}
