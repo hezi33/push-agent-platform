@@ -116,7 +116,7 @@ export default function MetricDetailDrawer({ open, card, onClose }: MetricDetail
       footer={null}
       destroyOnClose
     >
-      {/* 概览 — 筛选后数据联动 */}
+      {/* 概览 */}
       <Row gutter={16} style={{ marginBottom: 16 }}>
         <Col span={6}><Statistic title="当前值" value={displayValue} precision={prec} suffix={suffix} valueStyle={{ color: displayAnomaly ? '#F53F3F' : '#1D2129', fontSize: 22 }} /></Col>
         <Col span={6}><Statistic title="基线值" value={displayYesterday} precision={prec} suffix={suffix} /></Col>
@@ -129,6 +129,26 @@ export default function MetricDetailDrawer({ open, card, onClose }: MetricDetail
           ) : (
             <Statistic title="数据范围" value="全量" valueStyle={{ fontSize: 14 }} formatter={(v) => <Text type="secondary">{v}</Text>} />
           )}
+        </Col>
+      </Row>
+
+      {/* ── 筛选条件（控制全部数据）── */}
+      <Row justify="space-between" align="middle" style={{ marginBottom: 12, padding: '8px 12px', background: '#FAFBFC', borderRadius: 8 }}>
+        <Col>
+          <Space size={8}>
+            <Text strong style={{ fontSize: 13 }}>🔍 筛选下钻</Text>
+            {hasFilter && <Button size="small" type="link" onClick={() => { setVendorFilter('all'); setProvinceFilter('all'); setSendTypeFilter('all'); }}>清除</Button>}
+          </Space>
+        </Col>
+        <Col>
+          <Space size={8} wrap>
+            <Select size="small" value={vendorFilter} onChange={setVendorFilter} style={{ width: 100 }}
+              options={[{ value: 'all', label: '厂商▾' }, ...ALL_VENDORS.map((v) => ({ value: v, label: v }))]} />
+            <Select size="small" value={provinceFilter} onChange={setProvinceFilter} style={{ width: 100 }}
+              options={[{ value: 'all', label: '省份▾' }, ...ALL_PROVINCES.map((p) => ({ value: p, label: p }))]} showSearch />
+            <Select size="small" value={sendTypeFilter} onChange={setSendTypeFilter} style={{ width: 120 }}
+              options={[{ value: 'all', label: '发送类型▾' }, ...ALL_SEND_TYPES.map((s) => ({ value: s, label: s }))]} />
+          </Space>
         </Col>
       </Row>
 
@@ -165,31 +185,6 @@ export default function MetricDetailDrawer({ open, card, onClose }: MetricDetail
           series: [{ name: card.title, type: 'line', data: trendData, smooth: true }],
         }} style={{ height: 300 }} />
       </div>
-
-      {/* 筛选条件 — 数据联动 */}
-      <Row justify="space-between" align="middle" style={{ marginBottom: 12 }}>
-        <Col>
-          <Space size={8}>
-            <Text strong style={{ fontSize: 14 }}>📊 多维度对比</Text>
-            {hasFilter && (
-              <Button size="small" type="link" onClick={() => { setVendorFilter('all'); setProvinceFilter('all'); setSendTypeFilter('all'); }}>
-                清除筛选
-              </Button>
-            )}
-          </Space>
-        </Col>
-        <Col>
-          <Space size={8} wrap>
-            <Select size="small" value={vendorFilter} onChange={setVendorFilter} style={{ width: 100 }}
-              options={[{ value: 'all', label: '厂商▾' }, ...ALL_VENDORS.map((v) => ({ value: v, label: v }))]} />
-            <Select size="small" value={provinceFilter} onChange={setProvinceFilter} style={{ width: 100 }}
-              options={[{ value: 'all', label: '省份▾' }, ...ALL_PROVINCES.map((p) => ({ value: p, label: p }))]}
-              showSearch />
-            <Select size="small" value={sendTypeFilter} onChange={setSendTypeFilter} style={{ width: 120 }}
-              options={[{ value: 'all', label: '发送类型▾' }, ...ALL_SEND_TYPES.map((s) => ({ value: s, label: s }))]} />
-          </Space>
-        </Col>
-      </Row>
 
       <Tabs
         defaultActiveKey="vendors"
