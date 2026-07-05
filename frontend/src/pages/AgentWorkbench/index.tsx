@@ -344,7 +344,7 @@ export default function AgentWorkbench() {
   }, []);
 
   const handleSend = () => { if (input.trim() && !analyzing) runAnalysis(input.trim()); };
-  const pipelineDone = pipeline.every((a) => a.status === 'done');
+  const pipelineDone = pipeline.every((a) => a.status === 'done' || a.status === 'skipped');
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 56px - 48px)' }}>
@@ -473,7 +473,7 @@ function ChatBubble({ msg, navigate, onAnalyze, isAnalyzing }: {
         {msg.type === 'result_card' && msg.resultSummary && (
           <Card size="small" style={{ borderLeft: '3px solid #165DFF', borderRadius: 8, marginTop: 4 }}>
             <Space direction="vertical" size={6} style={{ width: '100%' }}>
-              <Space><Tag color="success" icon={<CheckCircleOutlined />}>分析完成</Tag><Text type="secondary" style={{ fontSize: 11 }}>总耗时 57.9s</Text></Space>
+              <Space><Tag color="success" icon={<CheckCircleOutlined />}>分析完成</Tag><Text type="secondary" style={{ fontSize: 11 }}>总耗时 {msg.resultSummary.isAnomaly ? '57.9s' : '3.2s'}</Text></Space>
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px 12px', fontSize: 12 }}>
                 <div><Text type="secondary">🎯 锁定:</Text> <Text strong>{msg.resultSummary.lockedDim}</Text></div>
