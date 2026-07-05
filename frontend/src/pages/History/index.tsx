@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  Row, Col, Card, Table, Tag, Space, Typography, Button, Select, DatePicker, Input, Statistic,
+  Row, Col, Card, Table, Tag, Space, Typography, Button, Select, DatePicker, Input, Statistic, message,
 } from 'antd';
 import {
   HistoryOutlined,
@@ -77,7 +77,7 @@ export default function History() {
           </Space>
         </Col>
         <Col>
-          <Button icon={<ExportOutlined />}>导出 Excel</Button>
+          <Button icon={<ExportOutlined />} onClick={() => message.info('导出功能待后端接入')}>导出 Excel</Button>
         </Col>
       </Row>
 

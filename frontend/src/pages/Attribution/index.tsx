@@ -63,7 +63,9 @@ export default function Attribution() {
           <Button type="text" icon={<ArrowLeftOutlined />} onClick={() => navigate('/dashboard')}>返回看板</Button>
         )}
         <Text type="secondary">/</Text>
-        <Text strong>归因分析报告</Text>
+        <Button type="link" style={{ padding: 0, fontSize: 14, fontWeight: 600, height: 'auto' }} onClick={() => navigate('/dashboard')}>
+          归因分析报告
+        </Button>
         <Text type="secondary">/</Text>
         <Text>{data.reportId}</Text>
       </Space>

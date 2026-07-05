@@ -13,7 +13,6 @@ import {
   CloseCircleOutlined,
   SyncOutlined,
 } from '@ant-design/icons';
-import ReactECharts from 'echarts-for-react';
 import { getStrategyDetail, getStrategyList } from '../../mocks/data/strategy';
 import { STATUS_LABELS, STATUS_COLORS } from '../../theme/colors';
 

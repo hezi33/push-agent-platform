@@ -60,7 +60,9 @@ export default function AnomalyDetail() {
           </Button>
         )}
         <Text type="secondary">/</Text>
-        <Text>异常详情</Text>
+        <Button type="link" style={{ padding: 0, fontSize: 14, fontWeight: 600, height: 'auto' }} onClick={() => navigate('/dashboard')}>
+          异常详情
+        </Button>
         <Text type="secondary">/</Text>
         <Text strong>{alertId}</Text>
       </Space>
