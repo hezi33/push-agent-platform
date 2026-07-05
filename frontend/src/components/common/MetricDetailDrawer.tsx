@@ -68,11 +68,11 @@ export default function MetricDetailDrawer({ open, card, onClose }: MetricDetail
     >
       <Row gutter={16} style={{ marginBottom: 20 }}>
         <Col span={6}><Statistic title="当前值" value={card.currentValue} precision={prec} suffix={suffix} valueStyle={{ color: card.anomaly ? '#F53F3F' : '#1D2129', fontSize: 22 }} /></Col>
-        <Col span={6}><Statistic title="昨日值" value={card.yesterdayValue} precision={prec} suffix={suffix} valueStyle={{ fontSize: 20 }} /></Col>
+        <Col span={6}><Statistic title="昨日值" value={card.yesterdayValue} precision={prec} suffix={suffix} /></Col>
         <Col span={6}><Statistic title="变化" value={Math.abs(card.changePct)} precision={1} suffix="%"
           prefix={arrow === '↑' ? <ArrowUpOutlined /> : arrow === '↓' ? <ArrowDownOutlined /> : <ArrowRightOutlined />}
           valueStyle={{ color, fontSize: 20 }} /></Col>
-        <Col span={6}><Statistic title="基线均值" value={isPct ? baseVal : card.yesterdayValue} precision={prec} suffix={suffix} valueStyle={{ fontSize: 20 }} /></Col>
+        <Col span={6}><Statistic title="基线均值" value={isPct ? baseVal : card.yesterdayValue} precision={prec} suffix={suffix} /></Col>
       </Row>
 
       <div style={{ marginBottom: 20 }}>
@@ -81,18 +81,13 @@ export default function MetricDetailDrawer({ open, card, onClose }: MetricDetail
           <Col><Segmented size="small" value={timeRange} onChange={(v) => setTimeRange(v as string)} options={TIME_OPTIONS} /></Col>
         </Row>
         <ReactECharts option={{
-          color: [CHART_COLORS[0]],
+          color: ['#165DFF'],
           tooltip: { trigger: 'axis' },
-          grid: { left: 8, right: 16, top: 16, bottom: 36, containLabel: true },
-          xAxis: { type: 'category', data: dates.map((d) => d.slice(5)), axisLabel: { fontSize: 10, color: '#86909C', rotate: days > 90 ? 30 : 0, interval: days > 90 ? Math.ceil(days / 15) : 0 } },
-          yAxis: { type: 'value', axisLabel: { fontSize: 10, color: '#86909C', formatter: `{value}${suffix}` }, splitLine: { lineStyle: { color: '#F2F3F5' } } },
-          series: [{
-            name: card.title, type: 'line', data: trendData, smooth: true, symbol: 'none',
-            lineStyle: { width: 2 },
-            areaStyle: { color: { type: 'linear', x: 0, y: 0, x2: 0, y2: 1, colorStops: [{ offset: 0, color: 'rgba(22,93,255,0.08)' }, { offset: 1, color: 'rgba(255,255,255,0)' }] } },
-            markLine: days > 7 ? { silent: true, symbol: 'none', lineStyle: { type: 'dashed', color: '#C9CDD4', width: 1 }, data: [{ yAxis: baseVal }] } : undefined,
-          }],
-        }} style={{ height: 300 }} notMerge />
+          grid: { left: 50, right: 20, top: 20, bottom: 40 },
+          xAxis: { type: 'category', data: dates.map((d) => d.slice(5)), axisLabel: { fontSize: 10 } },
+          yAxis: { type: 'value', axisLabel: { fontSize: 10 } },
+          series: [{ name: card.title, type: 'line', data: trendData, smooth: true }],
+        }} style={{ height: 300 }} />
       </div>
 
       <div>
@@ -100,9 +95,9 @@ export default function MetricDetailDrawer({ open, card, onClose }: MetricDetail
         <Tabs
           defaultActiveKey="vendors"
           items={[
-            { key: 'vendors', label: `按厂商`, children: <ReactECharts option={barOption(dimData.vendors)} style={{ height: 280 }} notMerge /> },
-            { key: 'provinces', label: `按省份 (${ALL_PROVINCES.length})`, children: <ReactECharts option={barOption(dimData.provinces)} style={{ height: 420 }} notMerge /> },
-            { key: 'sendTypes', label: '按发送类型', children: <ReactECharts option={barOption(dimData.sendTypes)} style={{ height: 260 }} notMerge /> },
+            { key: 'vendors', label: '按厂商', children: <ReactECharts option={barOption(dimData.vendors)} style={{ height: 280 }} /> },
+            { key: 'provinces', label: `按省份 (${ALL_PROVINCES.length})`, children: <ReactECharts option={barOption(dimData.provinces)} style={{ height: 400 }} /> },
+            { key: 'sendTypes', label: '按发送类型', children: <ReactECharts option={barOption(dimData.sendTypes)} style={{ height: 260 }} /> },
           ]}
         />
       </div>
