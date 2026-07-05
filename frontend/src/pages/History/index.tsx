@@ -219,7 +219,7 @@ const historyColumns: ColumnsType<AlertItem> = [
   {
     title: '操作', key: 'action', width: 100,
     render: (_: unknown, r: AlertItem) => (
-      <Button type="link" size="small" onClick={(e) => { e.stopPropagation(); navigate(`/anomaly/${r.alertId}`); }}>
+      <Button type="link" size="small" onClick={(e) => { e.stopPropagation(); window.location.href = `/anomaly/${r.alertId}`; }}>
         查看详情
       </Button>
     ),

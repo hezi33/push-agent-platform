@@ -154,7 +154,7 @@ export function getAnomalyDetail(alertId: string): AnomalyDetailData {
 
     timeline: [
       { time: fmtDateTime(TODAY, 14, 0), event: '监控 Agent 巡检发现异常，偏离度 2.8σ', icon: 'detect' },
-      { time: fmtDateTime(TODAY, 14, 0, 30), event: '严重告警推送至分析师 + 抄送管理层', icon: 'alert' },
+      { time: fmtDateTime(TODAY, 14, 0), event: '严重告警推送至分析师 + 抄送管理层', icon: 'alert' },
       { time: fmtDateTime(TODAY, 14, 1), event: '归因 Agent 自动触发，开始范围锁定', icon: 'attribution' },
       ...(isArriveAnomaly
         ? [{ time: fmtDateTime(TODAY, 14, 5), event: '归因进行中 — 已完成贡献度分解，正在漏斗定位...', icon: 'attribution' as const }]

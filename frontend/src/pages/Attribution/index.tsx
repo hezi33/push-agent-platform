@@ -16,7 +16,7 @@ import {
   QuestionCircleOutlined,
 } from '@ant-design/icons';
 import ReactECharts from 'echarts-for-react';
-import { getAttributionProgress, type AttributionReport } from '../../mocks/data/attribution';
+import { getAttributionProgress, type AttributionReport, type FunnelStageAnalysis } from '../../mocks/data/attribution';
 import { getMetricContext, type MetricContext } from '../../mocks/data/metricContext';
 import { STATUS_LABELS, STATUS_COLORS, getConfidenceColor } from '../../theme/colors';
 
@@ -37,7 +37,7 @@ export default function Attribution() {
   // 如果有 reportId → 展示已完成报告；否则模拟进行中再切换
   const [simulating, setSimulating] = useState(!reportId);
   const progress = getAttributionProgress();
-  const timerRef = useRef<ReturnType<typeof setTimeout>>();
+  const timerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   useEffect(() => {
     if (simulating) {

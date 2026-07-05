@@ -1,0 +1,28 @@
+plugins = []
+headers = []
+redirects = []
+
+[functions]
+
+[functions."*"]
+
+[build]
+publish = "/Users/xiaowumac/Documents/trae_projects/NetEase News/frontend/dist"
+publishOrigin = "ui"
+commandOrigin = "ui"
+base = "/Users/xiaowumac/Documents/trae_projects/NetEase News/frontend"
+command = "npm run build"
+
+[build.environment]
+
+[build.processing]
+
+[build.processing.css]
+
+[build.processing.html]
+
+[build.processing.images]
+
+[build.processing.js]
+
+[build.services]
