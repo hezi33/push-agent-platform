@@ -18,7 +18,8 @@ const { Text, Title } = Typography;
 // ── 类型 ──
 interface ChatMessage {
   id: string; role: 'agent' | 'user' | 'system'; content: string; time: string;
-  type?: 'text' | 'alert_card' | 'result_card';
+  type?: 'text' | 'alert_card' | 'result_card' | 'streaming_card';
+  pipeline?: PipelineAgent[];
   alertInfo?: { level: string; metric: string; dim: string; loss: number };
   resultSummary?: { lockedDim: string; funnelIssue: string; rootCause: string; confidence: number; suggestion: string };
   /** 属于这条消息的思考日志 */
@@ -32,7 +33,17 @@ const SUGGESTED_QUESTIONS = [
   '广东省小米用户的到达率为什么下降了？',
 ];
 
+// Push 业务相关关键词（用于判断问题是否相关）
+const PUSH_KEYWORDS = ['推送', 'push', '打开率', '到达率', '首启', '展示', '发送', '告警', '异常', '指标', '分析', '归因', '策略', '厂商', '省份', '小米', '华为', 'oppo', 'vivo', '三星', 'uv', 'pv', '漏斗', '转化', '优化', '广东', '浙江', '江苏', '北京', '下降', '减少', '降低', '减少', '为什么', '怎么', '帮我', '实时', '量'];
+
+function isRelevant(q: string): boolean {
+  return PUSH_KEYWORDS.some((kw) => q.toLowerCase().includes(kw));
+}
+
 function parseQuestionContext(q: string) {
+  // 不相关问题返回 null（由调用方处理）
+  if (!isRelevant(q)) return null;
+
   const l = q.toLowerCase();
   if (l.includes('uv打开率') || l.includes('打开率') || l.includes('uv 打开')) {
     return { metricName: 'UV 打开率', currentValue: 3.40, baselineValue: 3.90, changePct: -12.8, sigma: 2.4, lockedDim: '全量 × Android × 小米 × 广东省', funnelIssue: '打开率 ↓12.8%（内容质量问题）', rootCause: '广东省小米用户对近期全量 Push 内容兴趣度显著下降', confidence: 65, suggestion: '优化广东小米用户群的内容匹配算法；增发本地民生/天气类高打开率内容' };
@@ -79,8 +90,20 @@ export default function AgentWorkbench() {
   useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages, liveLogs]);
 
   const runAnalysis = useCallback((question: string) => {
+    // 不相关问题直接拒绝
     const ctx = parseQuestionContext(question);
+    if (!ctx) {
+      setMessages((prev) => [
+        ...prev,
+        { id: 'user-' + Date.now(), role: 'user', time: now(), content: question },
+        { id: 'agent-' + Date.now(), role: 'agent', time: now(), content: '抱歉，我是 Push 推送业务分析专用 Agent。我能帮你分析推送到达率、UV 打开率、首启 UV 等指标异常的原因。请尝试问我与 Push 数据相关的问题，例如「为什么今天 UV 打开率下降了？」。', type: 'text' },
+      ]);
+      setInput('');
+      return;
+    }
+
     const msgId = 'result-' + Date.now();
+    const streamingId = 'streaming-' + Date.now();
 
     setMessages((prev) => [...prev, { id: 'user-' + Date.now(), role: 'user', time: now(), content: question }]);
     setInput('');
@@ -88,19 +111,23 @@ export default function AgentWorkbench() {
     setLiveLogs([]);
     setPipeline(mockPipelineAgents.map((a) => ({ ...a, status: 'idle' as const, progress: 0, doneCount: 0 })));
 
-    // 先插入一个 thinking 消息（稍后被替换为 result）
-    const thinkingId = 'thinking-' + Date.now();
-    setMessages((prev) => [...prev, { id: thinkingId, role: 'agent', time: now(), content: '正在启动分析管道...', isStreaming: true }]);
+    // ✅ 插入 streaming_card：分析中实时展示思考过程（展开态）
+    setMessages((prev) => [...prev, {
+      id: streamingId, role: 'agent', time: now(),
+      content: '正在分析...', type: 'streaming_card',
+      thinkLogs: [], pipeline: mockPipelineAgents.map((a) => ({ ...a, status: 'idle' as const, progress: 0, doneCount: 0 })),
+    }]);
 
     const runLogs: ToolCallLog[] = [];
     let logIdx = 0;
     const tickLog = () => {
       if (logIdx >= mockToolCallLogs.length) {
-        setPipeline(mockPipelineAgents.map((a) => ({ ...a, status: 'done' as const, progress: 100, doneCount: a.toolCount })));
+        const finalPipeline = mockPipelineAgents.map((a) => ({ ...a, status: 'done' as const, progress: 100, doneCount: a.toolCount }));
+        setPipeline(finalPipeline);
         setTimeout(() => {
           setAnalyzing(false);
-          // 替换 thinking 消息为结果卡片
-          setMessages((prev) => prev.map((m) => m.id === thinkingId ? {
+          // ✅ 替换 streaming_card 为 result_card（思考折叠态）
+          setMessages((prev) => prev.map((m) => m.id === streamingId ? {
             id: msgId, role: 'agent', time: now(),
             content: `分析完成。根因锁定为**${ctx.rootCause}**（置信度 ${ctx.confidence}%）。`,
             type: 'result_card',
@@ -113,7 +140,8 @@ export default function AgentWorkbench() {
       const log = { ...mockToolCallLogs[logIdx] };
       runLogs.push(log);
       setLiveLogs([...runLogs]);
-      setPipeline((prev) => prev.map((a) => {
+
+      const curPipeline = mockPipelineAgents.map((a) => {
         if (a.key === log.agent) {
           const dc = runLogs.filter((l) => l.agent === a.key).length;
           return { ...a, status: 'running' as const, progress: Math.round((dc / a.toolCount) * 100), currentTool: log.toolLabel, doneCount: dc };
@@ -121,7 +149,12 @@ export default function AgentWorkbench() {
         if (a.key === 'attribution' && log.agent === 'strategy') return { ...a, status: 'done' as const, progress: 100, doneCount: a.toolCount };
         if (a.key === 'strategy' && log.agent !== 'strategy') return { ...a, status: 'waiting' as const, currentTool: '等待上游完成' };
         return a;
-      }));
+      });
+      setPipeline(curPipeline);
+
+      // ✅ 实时更新 streaming_card 的日志和管道
+      setMessages((prev) => prev.map((m) => m.id === streamingId ? { ...m, thinkLogs: [...runLogs], pipeline: curPipeline } : m));
+
       logIdx++;
       setTimeout(tickLog, log.isKey ? 800 : 250 + Math.random() * 250);
     };
@@ -217,7 +250,12 @@ function now() { return new Date().toLocaleTimeString('zh-CN', { hour: '2-digit'
 function ChatBubble({ msg, navigate, onAnalyze, isAnalyzing }: {
   msg: ChatMessage; navigate: ReturnType<typeof useNavigate>; onAnalyze: (q: string) => void; isAnalyzing: boolean;
 }) {
-  const [thinkOpen, setThinkOpen] = useState(false);
+  // streaming_card 默认展开，result_card 默认折叠
+  const isStreaming = msg.type === 'streaming_card';
+  const [thinkOpen, setThinkOpen] = useState(isStreaming);
+  // 当 streaming_card 更新时保持展开
+  useEffect(() => { if (isStreaming) setThinkOpen(true); }, [isStreaming, (msg.thinkLogs || []).length]);
+
   const isAgent = msg.role === 'agent';
   const todayMark = new Date().toISOString().slice(0, 10).replace(/-/g, '');
 
@@ -297,8 +335,59 @@ function ChatBubble({ msg, navigate, onAnalyze, isAnalyzing }: {
           </Card>
         )}
 
+        {/* 分析中卡片（streaming_card）— 思考自动展开 */}
+        {msg.type === 'streaming_card' && (
+          <Card size="small" style={{ borderLeft: '3px solid #165DFF', borderRadius: 8, marginTop: 4, background: '#FAFBFC' }}>
+            <Space direction="vertical" size={8} style={{ width: '100%' }}>
+              <Space>
+                <Tag icon={<SyncOutlined spin />} color="processing">分析中</Tag>
+                <Text type="secondary" style={{ fontSize: 11 }}>Agent 正在调用工具分析数据...</Text>
+              </Space>
+
+              {/* 管道 */}
+              {msg.pipeline && (
+                <div style={{ display: 'flex', gap: 6, fontSize: 11, flexWrap: 'wrap' }}>
+                  {msg.pipeline.map((a, i) => {
+                    const s: Record<string, string> = { idle: '⏳', running: '🔄', waiting: '⏸️', done: '✅' };
+                    return (
+                      <span key={a.key}>
+                        {a.icon} {a.label} {s[a.status] || '⏳'}
+                        {a.status === 'running' && <Progress percent={a.progress} size="small" style={{ width: 40, margin: '0 4px', display: 'inline-block' }} showInfo={false} />}
+                        {i < msg.pipeline!.length - 1 && ' → '}
+                      </span>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* 思考日志 — streaming 时强制展开 */}
+              {msg.thinkLogs && msg.thinkLogs.length > 0 && (
+                <Collapse
+                  activeKey={thinkOpen ? ['think'] : []}
+                  onChange={(keys) => setThinkOpen(keys.includes('think'))}
+                  size="small" ghost
+                  style={{ background: '#FAFBFC', borderRadius: 6 }}
+                  items={[{
+                    key: 'think',
+                    label: (
+                      <Space size={4}>
+                        <CodeOutlined style={{ fontSize: 11, color: '#165DFF' }} />
+                        <Text style={{ fontSize: 11, color: '#165DFF' }}>
+                          <SyncOutlined spin style={{ marginRight: 4 }} />
+                          Agent 思考中...（{msg.thinkLogs.length} 步）
+                        </Text>
+                      </Space>
+                    ),
+                    children: <ThinkLogInline logs={msg.thinkLogs} />,
+                  }]}
+                />
+              )}
+            </Space>
+          </Card>
+        )}
+
         {/* 普通文本 */}
-        {msg.type !== 'alert_card' && msg.type !== 'result_card' && (
+        {msg.type !== 'alert_card' && msg.type !== 'result_card' && msg.type !== 'streaming_card' && (
           <div style={{ padding: '10px 14px', borderRadius: 8, marginTop: 4, fontSize: 13, lineHeight: '22px', color: '#1D2129', background: isAgent ? '#F7F8FA' : '#E8F2FF' }}>
             {msg.content.split('**').map((part, i) => i % 2 === 1 ? <strong key={i}>{part}</strong> : part)}
           </div>
