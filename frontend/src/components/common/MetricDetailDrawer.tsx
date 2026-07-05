@@ -80,14 +80,16 @@ export default function MetricDetailDrawer({ open, card, onClose }: MetricDetail
           <Col><Text strong style={{ fontSize: 14 }}>📈 趋势图</Text></Col>
           <Col><Segmented size="small" value={timeRange} onChange={(v) => setTimeRange(v as string)} options={TIME_OPTIONS} /></Col>
         </Row>
-        <ReactECharts option={{
-          color: ['#165DFF'],
-          tooltip: { trigger: 'axis' },
-          grid: { left: 50, right: 20, top: 20, bottom: 40 },
-          xAxis: { type: 'category', data: dates.map((d) => d.slice(5)), axisLabel: { fontSize: 10 } },
-          yAxis: { type: 'value', axisLabel: { fontSize: 10 } },
-          series: [{ name: card.title, type: 'line', data: trendData, smooth: true }],
-        }} style={{ height: 300 }} />
+        <div style={{ height: 300, background: '#F7F8FA', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <ReactECharts option={{
+            color: ['#165DFF'],
+            tooltip: { trigger: 'axis' },
+            grid: { left: 50, right: 20, top: 20, bottom: 40 },
+            xAxis: { type: 'category', data: dates.map((d) => d.slice(5)), axisLabel: { fontSize: 10 } },
+            yAxis: { type: 'value', axisLabel: { fontSize: 10 } },
+            series: [{ name: card.title, type: 'line', data: trendData, smooth: true }],
+          }} style={{ height: 300, width: '100%' }} />
+        </div>
       </div>
 
       <div>
