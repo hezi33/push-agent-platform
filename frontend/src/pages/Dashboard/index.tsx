@@ -76,7 +76,7 @@ export default function Dashboard() {
       {/* ── KPI 数据卡片 ── */}
       <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
         {data.kpiCards.map((card) => (
-          <Col xs={24} sm={12} md={8} lg={Math.floor(24 / 7)} xl={3} key={card.metricKey}>
+          <Col xs={24} sm={12} lg={8} xl={4} key={card.metricKey}>
             <KPICard
               card={card}
               onClick={() => setDrawerCard(card)}

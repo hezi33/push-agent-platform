@@ -1,99 +1,167 @@
 // ============================================================
 // Mock 数据 — 异常详情页
-// ✅ 数据来源统一为 metricContext（与 KPI卡片、告警列表、工作台一致）
+// 所有日期动态生成
 // ============================================================
-import { getMetricContext } from './metricContext';
-import { generateTrend } from './trendGenerator';
 
 const TODAY = new Date();
-function fmtDate(d: Date) { return d.toISOString().split('T')[0]; }
-function daysAgo(n: number) { const d = new Date(TODAY); d.setDate(d.getDate() - n); return d; }
-function fmtDateTime(d: Date, h: number, m = 0) { const c = new Date(d); c.setHours(h, m, 0, 0); return c.toISOString(); }
-function dateRange(days: number) { const a: string[] = []; for (let i = days - 1; i >= 0; i--) a.push(fmtDate(daysAgo(i))); return a; }
+
+function fmtDate(d: Date): string {
+  return d.toISOString().split('T')[0];
+}
+
+function daysAgo(n: number): Date {
+  const d = new Date(TODAY);
+  d.setDate(d.getDate() - n);
+  return d;
+}
+
+function fmtDateTime(d: Date, hour: number, minute: number = 0): string {
+  const copy = new Date(d);
+  copy.setHours(hour, minute, 0, 0);
+  return copy.toISOString();
+}
+
+/** 生成 30 天日期 */
+function dateRange(days: number): string[] {
+  const arr: string[] = [];
+  for (let i = days - 1; i >= 0; i--) {
+    arr.push(fmtDate(daysAgo(i)));
+  }
+  return arr;
+}
 
 const DATES_30 = dateRange(30);
 
+// ============================================================
+// 告警详情（根据 alertId 返回不同数据）
+// ============================================================
+
 export interface AnomalyDetailData {
-  alertId: string; level: string; title: string; summary: string;
-  metricName: string; metricLabel: string; metricKey: string;
-  currentValue: number; baselineValue: number; changePct: number; deviationSigma: number;
+  alertId: string;
+  level: string;
+  title: string;
+  summary: string;
+  metricName: string;
+  metricLabel: string;
+  currentValue: number;
+  baselineValue: number;
+  changePct: number;
+  deviationSigma: number;
   dimension: { sendType: string; vendor: string; province: string; platform: string };
-  estimatedLoss: number; detectedAt: string; attributionStatus: string | null;
-  trendData: { dates: string[]; actual: number[]; baseline: number[]; upperBound: number[]; lowerBound: number[] };
+  estimatedLoss: number;
+  detectedAt: string;
+  attributionStatus: string | null;
+  // 30天趋势 + 基线
+  trendData: {
+    dates: string[];
+    actual: number[];
+    baseline: number[];
+    upperBound: number[]; // +2σ
+    lowerBound: number[]; // -2σ
+  };
+  // 多维度对比
   dimensionComparison: {
     vendors: { name: string; current: number; baseline: number }[];
     provinces: { name: string; current: number; baseline: number; changePct: number }[];
     sendTypes: { name: string; current: number; baseline: number }[];
     platforms: { name: string; current: number; baseline: number }[];
   };
+  // 事件时间线
   timeline: { time: string; event: string; icon: 'detect' | 'alert' | 'attribution' | 'strategy' | 'action' }[];
 }
 
-const ALERT_CONFIGS: Record<string, { metricKey: string; level: string; dim: { sendType: string; vendor: string; province: string; platform: string }; loss: number; sigma: number; time: [number, number] }> = {
-  '001': { metricKey: 'arrive_rate', level: 'S05', dim: { sendType: '本地实时', vendor: '小米', province: '广东', platform: 'Android' }, loss: 2300, sigma: 2.8, time: [14, 0] },
-  '002': { metricKey: 'uv_open_rate', level: 'S04', dim: { sendType: '全量', vendor: '小米', province: '广东', platform: 'Android' }, loss: 5200, sigma: 2.4, time: [11, 0] },
-  '003': { metricKey: 'first_open_uv', level: 'S04', dim: { sendType: '全量', vendor: '华为', province: '江苏', platform: 'Android' }, loss: 1800, sigma: 2.2, time: [10, 0] },
-  '004': { metricKey: 'avg_show', level: 'S03', dim: { sendType: '个性化实时', vendor: 'OPPO', province: 'all', platform: 'Android' }, loss: 0, sigma: 1.7, time: [9, 45] },
-};
+/**
+ * 获取异常详情数据
+ */
+export function getAnomalyDetail(alertId: string): AnomalyDetailData {
+  // 根据 alertId 返回对应的异常详情
+  // 默认返回「本地实时到达率骤降」的数据（PRD 主示例）
 
-export function getAnomalyDetail(alertId: string): AnomalyDetailData | null {
-  const suffix = alertId.split('-').pop() || '001';
-  const cfg = ALERT_CONFIGS[suffix] || ALERT_CONFIGS['001'];
-  const ctx = getMetricContext(cfg.metricKey);
-  const isPct = ctx.key.includes('rate') || ctx.key === 'uv_open_rate' || ctx.key === 'pv_open_rate';
+  const isArriveAnomaly = alertId.includes('-001');
+  const metricLabel = isArriveAnomaly ? '到达率' : 'UV 打开率';
+  const metricName = isArriveAnomaly ? 'arrive_rate' : 'uv_open_rate';
+  const unit = isArriveAnomaly ? '%' : '%';
 
-  const baselineMean = isPct ? (cfg.metricKey === 'arrive_rate' ? 35 : cfg.metricKey === 'uv_open_rate' ? 3.90 : cfg.metricKey === 'avg_show' ? 9.65 : 3) : 157000;
-  const actualVal = isPct ? (cfg.metricKey === 'arrive_rate' ? 22 : cfg.metricKey === 'uv_open_rate' ? 3.40 : cfg.metricKey === 'avg_show' ? 8.52 : 3) : 142000;
-  const noisePct = isPct ? 0.05 : 0.08;
-  const actual = DATES_30.map((_, i) => i === DATES_30.length - 1 ? actualVal : +(baselineMean + baselineMean * noisePct * (Math.random() * 2 - 1)).toFixed(2));
+  // 30 天趋势 — 前 29 天正常波动，最后一天骤降
+  const baselineMean = isArriveAnomaly ? 35 : 3.90;
+  const noisePct = isArriveAnomaly ? 0.06 : 0.03;
+  const dropValue = isArriveAnomaly ? 22 : 3.40;
+  const sigma = isArriveAnomaly ? 2.5 : 0.22;
+
+  const actual = DATES_30.map((_, i) => {
+    if (i === DATES_30.length - 1) return dropValue; // 最后一天异常
+    return +(baselineMean + baselineMean * noisePct * (Math.random() * 2 - 1)).toFixed(2);
+  });
+
   const baseline = DATES_30.map(() => baselineMean);
-  const upper = DATES_30.map(() => +(baselineMean + 2 * cfg.sigma).toFixed(2));
-  const lower = DATES_30.map(() => +(baselineMean - 2 * cfg.sigma).toFixed(2));
+  const upperBound = DATES_30.map(() => +(baselineMean + 2 * sigma).toFixed(2));
+  const lowerBound = DATES_30.map(() => +(baselineMean - 2 * sigma).toFixed(2));
 
   return {
-    alertId, level: cfg.level,
-    title: `${ctx.title} ${ctx.changePct > 0 ? '上升' : '下降'} ${Math.abs(ctx.changePct).toFixed(1)}%`,
-    summary: `${ctx.title}从基线 ${baselineMean}${isPct ? '%' : ''} 降至 ${actualVal}${isPct ? '%' : ''}（${ctx.changePct > 0 ? '+' : ''}${ctx.changePct}%，-${cfg.sigma}σ）。锁定维度：${cfg.dim.vendor}·${cfg.dim.province}。`,
-    metricName: ctx.key, metricLabel: ctx.title, metricKey: cfg.metricKey,
-    currentValue: actualVal, baselineValue: baselineMean, changePct: ctx.changePct, deviationSigma: cfg.sigma,
-    dimension: cfg.dim, estimatedLoss: cfg.loss, detectedAt: fmtDateTime(TODAY, cfg.time[0], cfg.time[1]),
-    attributionStatus: cfg.level === 'S05' || cfg.level === 'S04' ? 'S08' : null,
-    trendData: { dates: DATES_30, actual, baseline, upperBound: upper, lowerBound: lower },
+    alertId,
+    level: isArriveAnomaly ? 'S05' : 'S04',
+    title: isArriveAnomaly
+      ? '本地实时 Push 到达率骤降至 22%'
+      : '全量 Push UV 打开率下降 12.8%',
+    summary: isArriveAnomaly
+      ? `本地实时 Push 到达率从基线 ${baselineMean}% 骤降至 ${dropValue}%，下降 ${((1 - dropValue / baselineMean) * 100).toFixed(1)}%（-${isArriveAnomaly ? '2.8' : '2.4'}σ）。影响 Android·小米·广东省，预计已损失首启用户约 2,300。`
+      : `全量 Push UV 打开率从基线 ${baselineMean}% 降至 ${dropValue}%（-12.8%，-2.4σ）。多维度受影响，归因已完成，置信度 65%。`,
+    metricName,
+    metricLabel,
+    currentValue: dropValue,
+    baselineValue: baselineMean,
+    changePct: +(-((1 - dropValue / baselineMean) * 100)).toFixed(1),
+    deviationSigma: isArriveAnomaly ? 2.8 : 2.4,
+    dimension: isArriveAnomaly
+      ? { sendType: '本地实时', vendor: '小米', province: '广东', platform: 'Android' }
+      : { sendType: '全量', vendor: 'all', province: 'all', platform: 'all' },
+    estimatedLoss: isArriveAnomaly ? 2300 : 5200,
+    detectedAt: fmtDateTime(TODAY, 14, 0),
+    attributionStatus: isArriveAnomaly ? 'S07' : 'S08',
+
+    trendData: { dates: DATES_30, actual, baseline, upperBound, lowerBound },
+
     dimensionComparison: {
       vendors: [
-        { name: '小米', current: isPct ? actualVal * 0.85 : actualVal * 0.8, baseline: baselineMean },
-        { name: '华为', current: isPct ? baselineMean * 0.95 : baselineMean * 0.92, baseline: baselineMean },
-        { name: 'OPPO', current: isPct ? baselineMean * 0.98 : baselineMean * 0.96, baseline: baselineMean },
-        { name: 'VIVO', current: isPct ? baselineMean * 0.96 : baselineMean * 0.94, baseline: baselineMean },
-        { name: '三星', current: baselineMean * 0.9, baseline: baselineMean },
+        { name: '小米', current: isArriveAnomaly ? 22 : 3.2, baseline: isArriveAnomaly ? 35 : 3.9 },
+        { name: '华为', current: isArriveAnomaly ? 34 : 3.85, baseline: isArriveAnomaly ? 35 : 3.88 },
+        { name: 'OPPO', current: isArriveAnomaly ? 33 : 3.78, baseline: isArriveAnomaly ? 34 : 3.82 },
+        { name: 'VIVO', current: isArriveAnomaly ? 35 : 3.9, baseline: isArriveAnomaly ? 35 : 3.91 },
+        { name: '三星', current: isArriveAnomaly ? 32 : 3.75, baseline: isArriveAnomaly ? 33 : 3.77 },
       ],
       provinces: [
-        { name: '广东', current: actualVal, baseline: baselineMean, changePct: ctx.changePct },
-        { name: '浙江', current: baselineMean * 0.88, baseline: baselineMean, changePct: -12 },
-        { name: '江苏', current: baselineMean * 0.92, baseline: baselineMean, changePct: -8 },
-        { name: '北京', current: baselineMean * 0.97, baseline: baselineMean, changePct: -3 },
-        { name: '上海', current: baselineMean * 0.96, baseline: baselineMean, changePct: -4 },
-        { name: '山东', current: baselineMean * 0.98, baseline: baselineMean, changePct: -2 },
-        { name: '四川', current: baselineMean * 0.99, baseline: baselineMean, changePct: -1 },
-        { name: '湖北', current: baselineMean * 0.98, baseline: baselineMean, changePct: -2 },
+        { name: '广东', current: isArriveAnomaly ? 22 : 3.1, baseline: isArriveAnomaly ? 35 : 3.88, changePct: -37 },
+        { name: '浙江', current: isArriveAnomaly ? 30 : 3.5, baseline: isArriveAnomaly ? 34 : 3.82, changePct: -12 },
+        { name: '江苏', current: isArriveAnomaly ? 32 : 3.6, baseline: isArriveAnomaly ? 35 : 3.85, changePct: -8 },
+        { name: '北京', current: isArriveAnomaly ? 34 : 3.75, baseline: isArriveAnomaly ? 35 : 3.86, changePct: -3 },
+        { name: '上海', current: isArriveAnomaly ? 33 : 3.72, baseline: isArriveAnomaly ? 34 : 3.84, changePct: -3 },
+        { name: '山东', current: isArriveAnomaly ? 34 : 3.8, baseline: isArriveAnomaly ? 35 : 3.87, changePct: -2 },
+        { name: '四川', current: isArriveAnomaly ? 35 : 3.85, baseline: isArriveAnomaly ? 35 : 3.88, changePct: -1 },
+        { name: '湖北', current: isArriveAnomaly ? 34 : 3.82, baseline: isArriveAnomaly ? 35 : 3.87, changePct: -1 },
       ],
       sendTypes: [
-        { name: '全量', current: actualVal, baseline: baselineMean },
-        { name: '本地实时', current: baselineMean * 0.92, baseline: baselineMean },
-        { name: '个性化实时', current: baselineMean * 0.97, baseline: baselineMean },
-        { name: '个性化非实时', current: baselineMean * 0.98, baseline: baselineMean },
+        { name: '本地实时', current: isArriveAnomaly ? 22 : 3.4, baseline: isArriveAnomaly ? 35 : 3.9 },
+        { name: '全量', current: 33, baseline: 34 },
+        { name: '个性化实时', current: 36, baseline: 36 },
+        { name: '个性化非实时', current: 35, baseline: 35 },
       ],
       platforms: [
-        { name: 'Android', current: actualVal, baseline: baselineMean },
-        { name: 'Android去华为', current: baselineMean * 0.95, baseline: baselineMean },
-        { name: 'iOS', current: baselineMean * 0.98, baseline: baselineMean },
+        { name: 'Android', current: isArriveAnomaly ? 24 : 3.3, baseline: isArriveAnomaly ? 35 : 3.88 },
+        { name: 'Android去华为', current: isArriveAnomaly ? 22 : 3.15, baseline: isArriveAnomaly ? 34 : 3.85 },
+        { name: 'iOS', current: isArriveAnomaly ? 35 : 3.78, baseline: isArriveAnomaly ? 35 : 3.82 },
       ],
     },
+
     timeline: [
-      { time: fmtDateTime(TODAY, cfg.time[0], cfg.time[1]), event: '监控 Agent 巡检发现异常', icon: 'detect' },
-      { time: fmtDateTime(TODAY, cfg.time[0] + 0, cfg.time[1] + 5), event: `${cfg.level === 'S05' ? '严重' : ''}告警推送至分析师`, icon: 'alert' },
-      { time: fmtDateTime(TODAY, cfg.time[0] + 0, cfg.time[1] + 10), event: '归因 Agent 自动触发分析', icon: 'attribution' },
-      { time: fmtDateTime(TODAY, cfg.time[0] + 0, cfg.time[1] + 30), event: `归因完成 — 根因：${ctx.rootCause.slice(0, 30)}...`, icon: 'attribution' },
+      { time: fmtDateTime(TODAY, 14, 0), event: '监控 Agent 巡检发现异常，偏离度 2.8σ', icon: 'detect' },
+      { time: fmtDateTime(TODAY, 14, 0, 30), event: '严重告警推送至分析师 + 抄送管理层', icon: 'alert' },
+      { time: fmtDateTime(TODAY, 14, 1), event: '归因 Agent 自动触发，开始范围锁定', icon: 'attribution' },
+      ...(isArriveAnomaly
+        ? [{ time: fmtDateTime(TODAY, 14, 5), event: '归因进行中 — 已完成贡献度分解，正在漏斗定位...', icon: 'attribution' as const }]
+        : [
+            { time: fmtDateTime(TODAY, 11, 3), event: '归因完成 — 根因锁定为内容质量问题（置信度 65%）', icon: 'attribution' as const },
+            { time: fmtDateTime(TODAY, 11, 5), event: '策略 Agent 已生成优化建议，待分析师审核', icon: 'strategy' as const },
+          ]),
     ],
   };
 }
