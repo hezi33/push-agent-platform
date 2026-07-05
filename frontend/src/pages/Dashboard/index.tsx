@@ -269,22 +269,22 @@ const alertColumns: ColumnsType<AlertItem> = [
     title: '异常指标',
     key: 'metric',
     width: 180,
-    render: (_: unknown, record: AlertItem) => (
-      <Space direction="vertical" size={0}>
-        <Text strong style={{ fontSize: 13 }}>{record.metricLabel}</Text>
-        <Text
-          style={{
-            fontSize: 12,
-            color: record.changePct < 0 ? '#F53F3F' : '#00B42A',
-          }}
-        >
-          {getTrendArrow(record.changePct)} {Math.abs(record.changePct).toFixed(1)}%
-          <Text type="secondary" style={{ fontSize: 11 }}>
-            {' '}({record.currentValue}% vs {record.baselineValue}%)
+    render: (_: unknown, record: AlertItem) => {
+      // 构建维度标签
+      const dimParts = [record.dimension.vendor, record.dimension.province, record.dimension.platform].filter((d) => d !== 'all');
+      const dimLabel = dimParts.length > 0 ? `（${dimParts.join('·')}）` : '';
+      return (
+        <Space direction="vertical" size={0}>
+          <Text strong style={{ fontSize: 13 }}>{record.metricLabel}<Text type="secondary" style={{ fontSize: 11 }}>{dimLabel}</Text></Text>
+          <Text style={{ fontSize: 12, color: record.changePct < 0 ? '#F53F3F' : '#00B42A' }}>
+            {getTrendArrow(record.changePct)} {Math.abs(record.changePct).toFixed(1)}%
+            <Text type="secondary" style={{ fontSize: 11 }}>
+              {' '}({record.currentValue}{record.metricLabel.includes('率') || record.metricLabel.includes('展示') ? '%' : ''} vs {record.baselineValue}{record.metricLabel.includes('率') || record.metricLabel.includes('展示') ? '%' : ''})
+            </Text>
           </Text>
-        </Text>
-      </Space>
-    ),
+        </Space>
+      );
+    },
   },
   {
     title: '影响维度',
