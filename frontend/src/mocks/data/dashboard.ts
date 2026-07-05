@@ -34,17 +34,6 @@ function daysAgo(n: number): Date {
   return d;
 }
 
-/**
- * 生成 30 天日期列表
- */
-function generateDates(days: number = 30): string[] {
-  const dates: string[] = [];
-  for (let i = days - 1; i >= 0; i--) {
-    dates.push(fmtDate(daysAgo(i)));
-  }
-  return dates;
-}
-
 const DATES = generateDates(30);
 
 /** 今天的日期标记（用于告警 ID） */
@@ -53,21 +42,9 @@ const YESTERDAY_MARK = fmtDate(daysAgo(1)).replace(/-/g, '');
 const DAY2_MARK = fmtDate(daysAgo(2)).replace(/-/g, '');
 const DAY3_MARK = fmtDate(daysAgo(3)).replace(/-/g, '');
 
-/**
- * 带噪声的数值生成器
- * 在 base 值附近 ± noisePct 范围内波动
- */
-function noisy(base: number, noisePct: number = 0.05): number {
-  const noise = base * noisePct * (Math.random() * 2 - 1);
-  return Math.round(base + noise);
-}
-
 // ============================================================
-// KPI 数据卡片
+// KPI 数据卡片（使用统一生成器——保证迷你图和 Drawer 趋势一致）
 // ============================================================
-
-// 使用统一生成器——保证迷你图和 Drawer 趋势一致
-const TREND_7D = generateDates(7);
 
 export const mockKPICards: KPICardData[] = [
   {
