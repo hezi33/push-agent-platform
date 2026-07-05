@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { Modal, Tabs, Space, Typography, Statistic, Row, Col, Segmented, Button, Select, DatePicker, Tag, message } from 'antd';
 import { ArrowUpOutlined, ArrowDownOutlined, ArrowRightOutlined, ExportOutlined, DownloadOutlined } from '@ant-design/icons';
 import ReactECharts from 'echarts-for-react';
